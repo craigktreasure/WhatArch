@@ -1,3 +1,9 @@
 <Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/WhatArch.Tests/WhatArch.Tests.csproj" Id="b6842645-a69b-4ac0-b785-66a03d139c4c" />
+  </Folder>
+  <Folder Name="/tests/assets/">
+    <Project Path="tests/assets/SampleApp/SampleApp.csproj" />
+  </Folder>
   <Project Path="src/WhatArch/WhatArch.csproj" />
 </Solution>

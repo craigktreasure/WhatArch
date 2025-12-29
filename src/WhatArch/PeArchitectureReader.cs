@@ -20,12 +20,20 @@ public static class PeArchitectureReader
 
     public static string GetArchitecture(string filePath)
     {
-        using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        using var reader = new BinaryReader(stream);
+        ArgumentNullException.ThrowIfNull(filePath);
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException("The specified file does not exist.", filePath);
+        }
+
+        using FileStream stream = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using BinaryReader reader = new(stream);
 
         // Read DOS header
         if (reader.ReadUInt16() != 0x5A4D) // "MZ"
+        {
             throw new InvalidOperationException("Not a valid PE file");
+        }
 
         // Seek to PE header offset (at 0x3C in DOS header)
         stream.Seek(0x3C, SeekOrigin.Begin);
@@ -34,7 +42,9 @@ public static class PeArchitectureReader
         // Verify PE signature
         stream.Seek(peOffset, SeekOrigin.Begin);
         if (reader.ReadUInt32() != 0x00004550) // "PE\0\0"
+        {
             throw new InvalidOperationException("Not a valid PE file");
+        }
 
         // Read IMAGE_FILE_HEADER
         ushort machine = reader.ReadUInt16();
@@ -45,7 +55,9 @@ public static class PeArchitectureReader
 
         // Check if we have an optional header
         if (sizeOfOptionalHeader == 0)
+        {
             return GetNativeArchName(machine);
+        }
 
         // Read Optional Header magic to determine PE32 vs PE32+
         long optionalHeaderStart = stream.Position;
@@ -66,7 +78,9 @@ public static class PeArchitectureReader
 
         // If no CLR header, it's a native binary
         if (clrRva == 0 || clrSize == 0)
+        {
             return GetNativeArchName(machine);
+        }
 
         // It's a .NET assembly - read CorFlags
         uint corFlags = ReadCorFlags(reader, stream, peOffset, numberOfSections, clrRva);
@@ -131,10 +145,16 @@ public static class PeArchitectureReader
         if (isILOnly && machine == IMAGE_FILE_MACHINE_I386)
         {
             if (is32BitPreferred)
-                return "AnyCPU (32-bit preferred)";
+            {
+                return "AnyCPU (.NET - 32-bit preferred)";
+            }
+
             if (is32BitRequired)
+            {
                 return "x86 (.NET)";
-            return "AnyCPU";
+            }
+
+            return "AnyCPU (.NET)";
         }
 
         // Platform-specific .NET assemblies
