@@ -117,7 +117,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
-          name: packages_ubuntu
+          name: packages_windows
           path: __artifacts/package
           run-id: ${{ needs.find_build.outputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
