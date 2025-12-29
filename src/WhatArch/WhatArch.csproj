@@ -23,4 +23,8 @@
     <PackageReference Include="System.CommandLine" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="WhatArch.Tests" />
+  </ItemGroup>
+
 </Project>

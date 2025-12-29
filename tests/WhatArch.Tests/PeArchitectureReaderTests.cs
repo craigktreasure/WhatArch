@@ -1,8 +1,8 @@
-﻿namespace WhatArch.Tests;
+namespace WhatArch.Tests;
 
 public class PeArchitectureReaderTests
 {
-    private static readonly string TestBinariesPath = GetTestBinariesPath();
+    private static readonly string TestBinariesPath = TestHelpers.GetTestBinariesPath();
 
     private const string SampleAppName = "SampleApp";
 
@@ -82,27 +82,5 @@ public class PeArchitectureReaderTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => PeArchitectureReader.GetArchitecture(null!));
-    }
-
-    private static string GetTestBinariesPath()
-    {
-        string LocateRootDirectory()
-        {
-            string? currentDir = AppContext.BaseDirectory;
-
-            while (currentDir != null)
-            {
-                if (Directory.Exists(Path.Combine(currentDir, ".git")))
-                {
-                    return currentDir;
-                }
-
-                currentDir = Path.GetDirectoryName(currentDir);
-            }
-
-            throw new InvalidOperationException("Could not locate the root directory of the repository.");
-        }
-
-        return Path.Combine(LocateRootDirectory(), "tests", "assets", "binaries");
     }
 }
