@@ -7,9 +7,16 @@
     <!-- Global Tool Configuration -->
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>whatarch</ToolCommandName>
-    <PackageId>WhatArch</PackageId>
     <Authors>Craig</Authors>
     <Description>A command-line tool to detect the target architecture of Windows PE binaries</Description>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(RepoRootPath)README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
 </Project>
