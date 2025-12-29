@@ -19,4 +19,12 @@
     <None Include="$(RepoRootPath)README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="WhatArch.Tests" />
+  </ItemGroup>
+
 </Project>

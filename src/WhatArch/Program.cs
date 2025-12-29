@@ -1,29 +1,31 @@
-﻿using WhatArch;
+﻿using System.CommandLine;
 
-if (args.Length == 0)
-{
-    Console.Error.WriteLine("Usage: whatarch <path-to-binary>");
-    return 1;
-}
+using WhatArch;
 
-string filePath = args[0];
+Argument<string> pathArgument = new("path")
+{
+    Description = "Path to the binary file to analyze (searches current directory, then PATH)"
+};
 
-if (!File.Exists(filePath))
-{
-    Console.Error.WriteLine($"Error: File not found: {filePath}");
-    return 1;
-}
+RootCommand rootCommand = new("Detect the target architecture of Windows PE binaries");
+rootCommand.Arguments.Add(pathArgument);
 
-try
+rootCommand.SetAction(parseResult =>
 {
-    string architecture = PeArchitectureReader.GetArchitecture(filePath);
-    Console.WriteLine(architecture);
-    return 0;
-}
-#pragma warning disable CA1031 // Do not catch general exception types
-catch (Exception ex)
-#pragma warning restore CA1031 // Do not catch general exception types
-{
-    Console.Error.WriteLine($"Error: {ex.Message}");
-    return 1;
-}
+    string path = parseResult.GetValue(pathArgument)!;
+    var result = WhatArchRunner.Run(path);
+
+    if (result.Output is not null)
+    {
+        Console.WriteLine(result.Output);
+    }
+
+    if (result.Error is not null)
+    {
+        Console.Error.WriteLine(result.Error);
+    }
+
+    return result.ExitCode;
+});
+
+return rootCommand.Parse(args).Invoke();
