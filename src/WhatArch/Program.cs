@@ -1,29 +1,38 @@
-﻿using WhatArch;
+using System.CommandLine;
 
-if (args.Length == 0)
+using WhatArch;
+
+Argument<FileInfo> pathArgument = new("path")
 {
-    Console.Error.WriteLine("Usage: whatarch <path-to-binary>");
-    return 1;
-}
+    Description = "Path to the binary file to analyze"
+};
 
-string filePath = args[0];
+RootCommand rootCommand = new("Detect the target architecture of Windows PE binaries");
+rootCommand.Arguments.Add(pathArgument);
 
-if (!File.Exists(filePath))
+rootCommand.SetAction(parseResult =>
 {
-    Console.Error.WriteLine($"Error: File not found: {filePath}");
-    return 1;
-}
+    FileInfo file = parseResult.GetValue(pathArgument)!;
 
-try
-{
-    string architecture = PeArchitectureReader.GetArchitecture(filePath);
-    Console.WriteLine(architecture);
-    return 0;
-}
+    if (!file.Exists)
+    {
+        Console.Error.WriteLine($"Error: File not found: {file.FullName}");
+        return 1;
+    }
+
+    try
+    {
+        string architecture = PeArchitectureReader.GetArchitecture(file.FullName);
+        Console.WriteLine(architecture);
+        return 0;
+    }
 #pragma warning disable CA1031 // Do not catch general exception types
-catch (Exception ex)
+    catch (Exception ex)
 #pragma warning restore CA1031 // Do not catch general exception types
-{
-    Console.Error.WriteLine($"Error: {ex.Message}");
-    return 1;
-}
+    {
+        Console.Error.WriteLine($"Error: {ex.Message}");
+        return 1;
+    }
+});
+
+return rootCommand.Parse(args).Invoke();
