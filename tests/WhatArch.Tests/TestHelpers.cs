@@ -1,4 +1,4 @@
-namespace WhatArch.Tests;
+﻿namespace WhatArch.Tests;
 
 /// <summary>
 /// Shared test utilities and helpers.

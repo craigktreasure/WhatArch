@@ -1,4 +1,4 @@
-namespace WhatArch;
+﻿namespace WhatArch;
 
 /// <summary>
 /// Core application logic for WhatArch, exposed for testability.

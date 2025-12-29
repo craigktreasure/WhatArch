@@ -1,4 +1,4 @@
-namespace WhatArch;
+﻿namespace WhatArch;
 
 /// <summary>
 /// Resolves file paths by searching the current directory and PATH environment variable.
