@@ -10,7 +10,6 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>whatarch</ToolCommandName>
     <PackageId>WhatArch</PackageId>
-    <Version>1.0.0</Version>
     <Authors>Craig</Authors>
     <Description>A command-line tool to detect the target architecture of Windows PE binaries</Description>
   </PropertyGroup>

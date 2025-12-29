@@ -1,0 +1,26 @@
+<Project>
+  <!--
+    Enable and configure Central Package Manager (CPM)
+    https://learn.microsoft.com/nuget/consume-packages/central-package-management
+    -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <!--
+    Global package references
+    https://learn.microsoft.com/nuget/consume-packages/central-package-management#global-package-references
+    -->
+  <ItemGroup>
+    <GlobalPackageReference Include="Microsoft.Build.CopyOnWrite" Version="1.0.334" />
+  </ItemGroup>
+
+  <!--
+    Global package references for source only
+    https://learn.microsoft.com/nuget/consume-packages/central-package-management#global-package-references
+    -->
+  <ItemGroup Label="Source Only Global Packages" Condition=" '$(SourceOnlyPackagesEnabled)' == 'true' ">
+    <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <GlobalPackageReference Include="Nerdbank.GitVersioning" Version="3.9.50" />
+  </ItemGroup>
+</Project>
