@@ -1,0 +1,10 @@
+root = true
+
+[*]
+charset = utf-8-bom
+indent_style = space
+insert_final_newline = false
+trim_trailing_whitespace = true
+
+# Add guidelines to editor: https://github.com/pharring/EditorGuidelines#editorconfig-support-vs-2017-or-above
+guidelines = 80, 120

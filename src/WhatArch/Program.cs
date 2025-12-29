@@ -20,12 +20,9 @@ try
     Console.WriteLine(architecture);
     return 0;
 }
-catch (InvalidOperationException ex)
-{
-    Console.Error.WriteLine($"Error: {ex.Message}");
-    return 1;
-}
+#pragma warning disable CA1031 // Do not catch general exception types
 catch (Exception ex)
+#pragma warning restore CA1031 // Do not catch general exception types
 {
     Console.Error.WriteLine($"Error: {ex.Message}");
     return 1;

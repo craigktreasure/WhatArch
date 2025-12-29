@@ -1,6 +1,13 @@
 namespace WhatArch;
 
-public static class PeArchitectureReader
+/// <summary>
+/// Provides methods for determining the processor architecture of a Portable Executable (PE) file, including native
+/// binaries and .NET assemblies.
+/// </summary>
+/// <remarks>This class is intended for use with Windows PE files, such as EXE and DLL files. It supports
+/// detection of both native and managed (.NET) architectures, including x86, x64, ARM, ARM64, and AnyCPU variants. All
+/// members are static and thread-safe.</remarks>
+internal static class PeArchitectureReader
 {
     // Machine type constants
     private const ushort IMAGE_FILE_MACHINE_I386 = 0x014c;
@@ -9,7 +16,7 @@ public static class PeArchitectureReader
     private const ushort IMAGE_FILE_MACHINE_ARMNT = 0x01c4;
 
     // PE format constants
-    private const ushort PE32_MAGIC = 0x10b;
+    // private const ushort PE32_MAGIC = 0x10b;
     private const ushort PE32PLUS_MAGIC = 0x20b;
     private const int CLR_HEADER_DIRECTORY_INDEX = 14;
 
@@ -18,6 +25,20 @@ public static class PeArchitectureReader
     private const uint COMIMAGE_FLAGS_32BITREQUIRED = 0x00000002;
     private const uint COMIMAGE_FLAGS_32BITPREFERRED = 0x00020000;
 
+    /// <summary>
+    /// Determines the processor architecture of a Portable Executable (PE) file, including native binaries and .NET
+    /// assemblies.
+    /// </summary>
+    /// <remarks>For .NET assemblies, the returned architecture reflects the target platform as specified in
+    /// the assembly's metadata (e.g., "AnyCPU", "x86", "x64"). For native binaries, the architecture is determined from
+    /// the PE header. This method does not validate whether the file is a managed or unmanaged binary beyond its PE
+    /// format.</remarks>
+    /// <param name="filePath">The path to the PE file whose architecture is to be identified. Cannot be null. The file must exist and be
+    /// accessible for reading.</param>
+    /// <returns>A string representing the processor architecture of the specified file, such as "x86", "x64", "ARM", or "AnyCPU"
+    /// for .NET assemblies.</returns>
+    /// <exception cref="FileNotFoundException">Thrown if the file specified by <paramref name="filePath"/> does not exist.</exception>
+    /// <exception cref="InvalidOperationException">Thrown if the specified file is not a valid PE file.</exception>
     public static string GetArchitecture(string filePath)
     {
         ArgumentNullException.ThrowIfNull(filePath);
