@@ -10,7 +10,8 @@ jobs:
       fail-fast: false
       matrix:
         platform: [
-          { os: windows, buildAgent: windows-2025 }
+          { os: windows, buildAgent: windows-2025 },
+          { os: windows-arm, buildAgent: windows-11-arm }
         ]
     uses: ./.github/workflows/workflow_build.yml
     secrets: inherit

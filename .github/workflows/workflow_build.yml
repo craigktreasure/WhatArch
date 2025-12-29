@@ -8,10 +8,10 @@ on:
         default: true
       artifactSuffix:
         type: string
-        default: ubuntu
+        default: windows
       buildAgent:
         type: string
-        default: ubuntu-latest
+        default: windows-2025
     outputs:
       package_version:
         description: 'The version of the package that was built.'
