@@ -58,14 +58,14 @@ jobs:
       - name: Test
         run: dotnet test --configuration Release --no-build --verbosity normal /p:CollectCoverage=true
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          name: codecov
-          directory: __artifacts/test-results
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
-          verbose: true
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v5
+      #   with:
+      #     name: codecov
+      #     directory: __artifacts/test-results
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     fail_ci_if_error: true
+      #     verbose: true
 
       - name: Upload output artifact
         uses: actions/upload-artifact@v6

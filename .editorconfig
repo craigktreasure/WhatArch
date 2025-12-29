@@ -8,3 +8,9 @@ trim_trailing_whitespace = true
 
 # Add guidelines to editor: https://github.com/pharring/EditorGuidelines#editorconfig-support-vs-2017-or-above
 guidelines = 80, 120
+
+[*.{cs,vb}]
+
+indent_size = 4
+tab_width = 4
+insert_final_newline = true
