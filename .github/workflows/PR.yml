@@ -1,0 +1,19 @@
+name: PR
+
+on: pull_request
+
+jobs:
+  build_pr:
+    name: Build
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        platform: [
+          { os: windows, buildAgent: windows-2025 }
+        ]
+    uses: ./.github/workflows/workflow_build.yml
+    secrets: inherit
+    with:
+      artifactSuffix: ${{ matrix.platform.os }}
+      buildAgent: ${{ matrix.platform.buildAgent }}
