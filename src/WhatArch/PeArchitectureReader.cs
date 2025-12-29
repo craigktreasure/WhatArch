@@ -1,4 +1,4 @@
-namespace WhatArch;
+﻿namespace WhatArch;
 
 /// <summary>
 /// Provides methods for determining the processor architecture of a Portable Executable (PE) file, including native

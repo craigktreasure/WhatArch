@@ -1,4 +1,4 @@
-using WhatArch;
+﻿using WhatArch;
 
 if (args.Length == 0)
 {
