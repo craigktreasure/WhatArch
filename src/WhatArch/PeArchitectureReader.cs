@@ -1,5 +1,7 @@
 ﻿namespace WhatArch;
 
+using System.IO.Abstractions;
+
 /// <summary>
 /// Provides methods for determining the processor architecture of a Portable Executable (PE) file, including native
 /// binaries and .NET assemblies.
@@ -33,21 +35,24 @@ internal static class PeArchitectureReader
     /// the assembly's metadata (e.g., "AnyCPU", "x86", "x64"). For native binaries, the architecture is determined from
     /// the PE header. This method does not validate whether the file is a managed or unmanaged binary beyond its PE
     /// format.</remarks>
+    /// <param name="fileSystem">The file system abstraction to use for file operations. Cannot be null.</param>
     /// <param name="filePath">The path to the PE file whose architecture is to be identified. Cannot be null. The file must exist and be
     /// accessible for reading.</param>
     /// <returns>A string representing the processor architecture of the specified file, such as "x86", "x64", "ARM", or "AnyCPU"
     /// for .NET assemblies.</returns>
     /// <exception cref="FileNotFoundException">Thrown if the file specified by <paramref name="filePath"/> does not exist.</exception>
     /// <exception cref="InvalidOperationException">Thrown if the specified file is not a valid PE file.</exception>
-    public static string GetArchitecture(string filePath)
+    public static string GetArchitecture(IFileSystem fileSystem, string filePath)
     {
+        ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(filePath);
-        if (!File.Exists(filePath))
+
+        if (!fileSystem.File.Exists(filePath))
         {
             throw new FileNotFoundException("The specified file does not exist.", filePath);
         }
 
-        using FileStream stream = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using FileSystemStream stream = fileSystem.File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using BinaryReader reader = new(stream);
 
         // Read DOS header
@@ -109,7 +114,7 @@ internal static class PeArchitectureReader
         return GetManagedArchName(machine, corFlags);
     }
 
-    private static uint ReadCorFlags(BinaryReader reader, FileStream stream, int peOffset, ushort numberOfSections, uint clrRva)
+    private static uint ReadCorFlags(BinaryReader reader, FileSystemStream stream, int peOffset, ushort numberOfSections, uint clrRva)
     {
         // Need to convert RVA to file offset using section headers
         long sectionHeadersStart = peOffset + 24 + reader.BaseStream.Position - reader.BaseStream.Position;

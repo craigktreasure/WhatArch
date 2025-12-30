@@ -1,5 +1,8 @@
 ﻿namespace WhatArch;
 
+using System.IO.Abstractions;
+using WhatArch.Abstractions;
+
 /// <summary>
 /// Resolves file paths by searching the current directory and PATH environment variable.
 /// </summary>
@@ -10,36 +13,28 @@ internal static class FileResolver
     /// 1. As-is (absolute or relative to current directory)
     /// 2. PATH environment variable (for bare filenames only)
     /// </summary>
+    /// <param name="fileSystem">The file system abstraction.</param>
     /// <param name="path">The file path to resolve.</param>
+    /// <param name="environmentVariableProvider">The environment variable provider.</param>
     /// <param name="resolvedPath">The resolved absolute path if found.</param>
     /// <returns>True if the file was found, false otherwise.</returns>
-    public static bool TryResolve(string path, out string? resolvedPath)
+    public static bool TryResolve(IFileSystem fileSystem, string path, IEnvironmentVariableProvider environmentVariableProvider, out string? resolvedPath)
     {
-        return TryResolve(path, Environment.GetEnvironmentVariable("PATH"), out resolvedPath);
-    }
-
-    /// <summary>
-    /// Attempts to resolve a file path by searching:
-    /// 1. As-is (absolute or relative to current directory)
-    /// 2. PATH environment variable (for bare filenames only)
-    /// </summary>
-    /// <param name="path">The file path to resolve.</param>
-    /// <param name="pathEnvironment">The PATH environment variable value.</param>
-    /// <param name="resolvedPath">The resolved absolute path if found.</param>
-    /// <returns>True if the file was found, false otherwise.</returns>
-    public static bool TryResolve(string path, string? pathEnvironment, out string? resolvedPath)
-    {
+        ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(environmentVariableProvider);
+
+        string? pathEnvironment = environmentVariableProvider.GetEnvironmentVariable("PATH");
 
         // Try as-is (absolute or relative to current directory)
-        if (File.Exists(path))
+        if (fileSystem.File.Exists(path))
         {
-            resolvedPath = Path.GetFullPath(path);
+            resolvedPath = fileSystem.Path.GetFullPath(path);
             return true;
         }
 
         // Only search PATH for bare filenames (no directory separators)
-        if (ShouldSearchPath(path) && !string.IsNullOrEmpty(pathEnvironment))
+        if (ShouldSearchPath(fileSystem, path) && !string.IsNullOrEmpty(pathEnvironment))
         {
             foreach (string directory in pathEnvironment.Split(Path.PathSeparator))
             {
@@ -48,10 +43,10 @@ internal static class FileResolver
                     continue;
                 }
 
-                string fullPath = Path.Combine(directory, path);
-                if (File.Exists(fullPath))
+                string fullPath = fileSystem.Path.Combine(directory, path);
+                if (fileSystem.File.Exists(fullPath))
                 {
-                    resolvedPath = Path.GetFullPath(fullPath);
+                    resolvedPath = fileSystem.Path.GetFullPath(fullPath);
                     return true;
                 }
             }
@@ -65,9 +60,11 @@ internal static class FileResolver
     /// Determines if PATH should be searched for the given path.
     /// Only bare filenames (no directory separators or rooted paths) should trigger PATH search.
     /// </summary>
-    internal static bool ShouldSearchPath(string path)
+    /// <param name="fileSystem">The file system abstraction.</param>
+    /// <param name="path">The file path to check.</param>
+    internal static bool ShouldSearchPath(IFileSystem fileSystem, string path)
     {
-        if (Path.IsPathRooted(path))
+        if (fileSystem.Path.IsPathRooted(path))
         {
             return false;
         }

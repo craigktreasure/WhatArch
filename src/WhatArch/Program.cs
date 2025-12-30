@@ -1,6 +1,7 @@
 ﻿using System.CommandLine;
-
+using System.IO.Abstractions;
 using WhatArch;
+using WhatArch.Abstractions;
 
 Argument<string> pathArgument = new("path")
 {
@@ -13,7 +14,9 @@ rootCommand.Arguments.Add(pathArgument);
 rootCommand.SetAction(parseResult =>
 {
     string path = parseResult.GetValue(pathArgument)!;
-    var result = WhatArchRunner.Run(path);
+    FileSystem fileSystem = new();
+    EnvironmentVariableProvider environmentVariableProvider = new();
+    var result = WhatArchRunner.Run(fileSystem, path, environmentVariableProvider);
 
     if (result.Output is not null)
     {
