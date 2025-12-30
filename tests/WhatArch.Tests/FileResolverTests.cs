@@ -1,7 +1,11 @@
 ﻿namespace WhatArch.Tests;
 
+using System.IO.Abstractions;
+
 public class FileResolverTests
 {
+    private static readonly FileSystem FileSystem = new();
+
     private static readonly string TestBinariesPath = TestHelpers.GetTestBinariesPath();
 
     #region ShouldSearchPath Tests
@@ -13,7 +17,7 @@ public class FileResolverTests
     public void ShouldSearchPath_BareFilename_ReturnsTrue(string path, bool expected)
     {
         // Act
-        bool result = FileResolver.ShouldSearchPath(path);
+        bool result = FileResolver.ShouldSearchPath(FileSystem, path);
 
         // Assert
         Assert.Equal(expected, result);
@@ -26,7 +30,7 @@ public class FileResolverTests
     public void ShouldSearchPath_AbsolutePath_ReturnsFalse(string path)
     {
         // Act
-        bool result = FileResolver.ShouldSearchPath(path);
+        bool result = FileResolver.ShouldSearchPath(FileSystem, path);
 
         // Assert
         Assert.False(result);
@@ -40,7 +44,7 @@ public class FileResolverTests
     public void ShouldSearchPath_RelativePathWithSeparator_ReturnsFalse(string path)
     {
         // Act
-        bool result = FileResolver.ShouldSearchPath(path);
+        bool result = FileResolver.ShouldSearchPath(FileSystem, path);
 
         // Assert
         Assert.False(result);
@@ -54,7 +58,8 @@ public class FileResolverTests
     public void TryResolve_NullPath_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => FileResolver.TryResolve(null!, out _));
+        Assert.Throws<ArgumentNullException>(() => FileResolver.TryResolve(null!, "something", out _));
+        Assert.Throws<ArgumentNullException>(() => FileResolver.TryResolve(FileSystem, null!, out _));
     }
 
     [Fact]
@@ -64,7 +69,7 @@ public class FileResolverTests
         string filePath = Path.Combine(TestBinariesPath, "release_net10.0_anycpu", "SampleApp.dll");
 
         // Act
-        bool result = FileResolver.TryResolve(filePath, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(FileSystem, filePath, out string? resolvedPath);
 
         // Assert
         Assert.True(result);
@@ -79,7 +84,7 @@ public class FileResolverTests
         string filePath = Path.Combine(TestBinariesPath, "non_existent_file.exe");
 
         // Act
-        bool result = FileResolver.TryResolve(filePath, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(FileSystem, filePath, out string? resolvedPath);
 
         // Assert
         Assert.False(result);
@@ -94,7 +99,7 @@ public class FileResolverTests
         string filename = "SampleApp.dll";
 
         // Act
-        bool result = FileResolver.TryResolve(filename, mockPath, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(FileSystem, filename, mockPath, out string? resolvedPath);
 
         // Assert
         Assert.True(result);
@@ -110,7 +115,7 @@ public class FileResolverTests
         string filename = "nonexistent.exe";
 
         // Act
-        bool result = FileResolver.TryResolve(filename, mockPath, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(FileSystem, filename, mockPath, out string? resolvedPath);
 
         // Assert
         Assert.False(result);
@@ -127,7 +132,7 @@ public class FileResolverTests
         string filename = "SampleApp.dll";
 
         // Act
-        bool result = FileResolver.TryResolve(filename, mockPath, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(FileSystem, filename, mockPath, out string? resolvedPath);
 
         // Assert
         Assert.True(result);
@@ -142,7 +147,7 @@ public class FileResolverTests
         string filename = "SampleApp.dll";
 
         // Act
-        bool result = FileResolver.TryResolve(filename, "", out string? resolvedPath);
+        bool result = FileResolver.TryResolve(FileSystem, filename, "", out string? resolvedPath);
 
         // Assert
         Assert.False(result);
@@ -156,7 +161,7 @@ public class FileResolverTests
         string filename = "nonexistent.exe";
 
         // Act
-        bool result = FileResolver.TryResolve(filename, null, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(FileSystem, filename, null, out string? resolvedPath);
 
         // Assert
         Assert.False(result);
@@ -172,7 +177,7 @@ public class FileResolverTests
         string relativePath = @"subdir\SampleApp.dll"; // This shouldn't search PATH
 
         // Act
-        bool result = FileResolver.TryResolve(relativePath, mockPath, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(FileSystem, relativePath, mockPath, out string? resolvedPath);
 
         // Assert
         Assert.False(result);

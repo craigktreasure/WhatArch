@@ -1,7 +1,11 @@
 ﻿namespace WhatArch.Tests;
 
+using System.IO.Abstractions;
+
 public class PeArchitectureReaderTests
 {
+    private static readonly FileSystem FileSystem = new();
+
     private static readonly string TestBinariesPath = TestHelpers.GetTestBinariesPath();
 
     private const string SampleAppName = "SampleApp";
@@ -13,7 +17,7 @@ public class PeArchitectureReaderTests
         string filePath = Path.Combine(TestBinariesPath, "non_existent_file.exe");
 
         // Act & Assert
-        Assert.Throws<FileNotFoundException>(() => PeArchitectureReader.GetArchitecture(filePath));
+        Assert.Throws<FileNotFoundException>(() => PeArchitectureReader.GetArchitecture(FileSystem, filePath));
     }
 
     [Fact]
@@ -23,7 +27,7 @@ public class PeArchitectureReaderTests
         string filePath = Path.Combine(TestBinariesPath, "..", "not_a_pe.txt");
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => PeArchitectureReader.GetArchitecture(filePath));
+        Assert.Throws<InvalidOperationException>(() => PeArchitectureReader.GetArchitecture(FileSystem, filePath));
     }
 
     [Theory]
@@ -36,7 +40,7 @@ public class PeArchitectureReaderTests
         string filePath = Path.Combine(TestBinariesPath, $"release_net10.0_{rid}", SampleAppName + ".exe");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal(expectedArch, actualArch);
@@ -53,7 +57,7 @@ public class PeArchitectureReaderTests
         string filePath = Path.Combine(TestBinariesPath, $"release_net10.0_{rid}", SampleAppName + ".dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal(expectedArch, actualArch);
@@ -71,7 +75,7 @@ public class PeArchitectureReaderTests
         string filePath = Path.Combine(TestBinariesPath, $"release_net48_{rid}", SampleAppName + ".exe");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal(expectedArch, actualArch);
@@ -81,6 +85,7 @@ public class PeArchitectureReaderTests
     public void GetArchitecture_NullParameter_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => PeArchitectureReader.GetArchitecture(null!));
+        Assert.Throws<ArgumentNullException>(() => PeArchitectureReader.GetArchitecture(null!, "something"));
+        Assert.Throws<ArgumentNullException>(() => PeArchitectureReader.GetArchitecture(FileSystem, null!));
     }
 }

@@ -1,4 +1,6 @@
-namespace WhatArch.Tests;
+﻿namespace WhatArch.Tests;
+
+using System.IO.Abstractions;
 
 /// <summary>
 /// Tests using synthetically constructed PE files to cover edge cases
@@ -6,6 +8,8 @@ namespace WhatArch.Tests;
 /// </summary>
 public sealed class PeArchitectureReaderSyntheticTests : IDisposable
 {
+    private static readonly FileSystem FileSystem = new();
+
     private readonly List<string> _tempFiles = [];
 
     public void Dispose()
@@ -25,7 +29,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
 
     private string SaveTempFile(byte[] data, string name)
     {
-        string path = TestPeBuilder.SaveToTempFile(data, $"{Guid.NewGuid()}_{name}");
+        string path = TestPeBuilder.SaveToTempFile(FileSystem, data, $"{Guid.NewGuid()}_{name}");
         _tempFiles.Add(path);
         return path;
     }
@@ -44,7 +48,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(peData, $"native_{expectedArch}.exe");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal(expectedArch, actualArch);
@@ -59,7 +63,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(peData, "unknown_machine.exe");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal("Unknown (0x9999)", actualArch);
@@ -73,7 +77,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(peData, "no_optional_header.exe");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal("x64", actualArch);
@@ -87,7 +91,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(peData, "pe32plus.exe");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal("x64", actualArch);
@@ -106,7 +110,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(peData, "managed_anycpu.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal("AnyCPU (.NET)", actualArch);
@@ -122,7 +126,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(peData, "managed_anycpu_prefer32.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal("AnyCPU (.NET - 32-bit preferred)", actualArch);
@@ -138,7 +142,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(peData, "managed_x86.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal("x86 (.NET)", actualArch);
@@ -152,7 +156,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(peData, "managed_x64.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal("x64 (.NET)", actualArch);
@@ -166,7 +170,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(peData, "managed_arm64.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal("ARM64 (.NET)", actualArch);
@@ -180,7 +184,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(peData, "managed_arm.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal("ARM (.NET)", actualArch);
@@ -195,7 +199,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(peData, "managed_unknown.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal("Unknown (.NET, 0x8888)", actualArch);
@@ -209,7 +213,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(peData, "managed_mixed_x86.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
 
         // Assert
         Assert.Equal("x86 (.NET)", actualArch);
@@ -227,7 +231,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(data, "invalid_mz.exe");
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => PeArchitectureReader.GetArchitecture(filePath));
+        Assert.Throws<InvalidOperationException>(() => PeArchitectureReader.GetArchitecture(FileSystem, filePath));
     }
 
     [Fact]
@@ -238,7 +242,7 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         string filePath = SaveTempFile(data, "invalid_pe.exe");
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => PeArchitectureReader.GetArchitecture(filePath));
+        Assert.Throws<InvalidOperationException>(() => PeArchitectureReader.GetArchitecture(FileSystem, filePath));
     }
 
     #endregion

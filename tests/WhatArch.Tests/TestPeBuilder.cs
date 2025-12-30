@@ -1,5 +1,7 @@
 ﻿namespace WhatArch.Tests;
 
+using System.IO.Abstractions;
+
 /// <summary>
 /// Builds minimal PE files for testing edge cases and error scenarios.
 /// </summary>
@@ -205,11 +207,12 @@ internal static class TestPeBuilder
     /// <summary>
     /// Saves a byte array to a file in the test output directory.
     /// </summary>
-    public static string SaveToTempFile(byte[] data, string filename)
+    public static string SaveToTempFile(IFileSystem fileSystem, byte[] data, string filename)
     {
-        string path = Path.Combine(Path.GetTempPath(), "WhatArchTests", filename);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllBytes(path, data);
+        string path = fileSystem.Path.Combine(fileSystem.Path.GetTempPath(), "WhatArchTests", filename);
+        fileSystem.Directory.CreateDirectory(fileSystem.Path.GetDirectoryName(path)!);
+        fileSystem.File.WriteAllBytes(path, data);
+
         return path;
     }
 }

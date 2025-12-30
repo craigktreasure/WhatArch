@@ -1,5 +1,5 @@
 ﻿using System.CommandLine;
-
+using System.IO.Abstractions;
 using WhatArch;
 
 Argument<string> pathArgument = new("path")
@@ -13,7 +13,7 @@ rootCommand.Arguments.Add(pathArgument);
 rootCommand.SetAction(parseResult =>
 {
     string path = parseResult.GetValue(pathArgument)!;
-    var result = WhatArchRunner.Run(path);
+    var result = WhatArchRunner.Run(new FileSystem(), path: path);
 
     if (result.Output is not null)
     {
