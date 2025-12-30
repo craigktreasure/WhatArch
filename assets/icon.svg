@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="chipGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="questionGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#d97706"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="#1e1b4b"/>
+
+  <!-- CPU/Chip base -->
+  <rect x="32" y="32" width="64" height="64" rx="8" fill="url(#chipGrad)"/>
+
+  <!-- Chip pins - top -->
+  <rect x="42" y="24" width="6" height="12" rx="1" fill="#a5b4fc"/>
+  <rect x="54" y="24" width="6" height="12" rx="1" fill="#a5b4fc"/>
+  <rect x="66" y="24" width="6" height="12" rx="1" fill="#a5b4fc"/>
+  <rect x="78" y="24" width="6" height="12" rx="1" fill="#a5b4fc"/>
+
+  <!-- Chip pins - bottom -->
+  <rect x="42" y="92" width="6" height="12" rx="1" fill="#a5b4fc"/>
+  <rect x="54" y="92" width="6" height="12" rx="1" fill="#a5b4fc"/>
+  <rect x="66" y="92" width="6" height="12" rx="1" fill="#a5b4fc"/>
+  <rect x="78" y="92" width="6" height="12" rx="1" fill="#a5b4fc"/>
+
+  <!-- Chip pins - left -->
+  <rect x="24" y="42" width="12" height="6" rx="1" fill="#a5b4fc"/>
+  <rect x="24" y="54" width="12" height="6" rx="1" fill="#a5b4fc"/>
+  <rect x="24" y="66" width="12" height="6" rx="1" fill="#a5b4fc"/>
+  <rect x="24" y="78" width="12" height="6" rx="1" fill="#a5b4fc"/>
+
+  <!-- Chip pins - right -->
+  <rect x="92" y="42" width="12" height="6" rx="1" fill="#a5b4fc"/>
+  <rect x="92" y="54" width="12" height="6" rx="1" fill="#a5b4fc"/>
+  <rect x="92" y="66" width="12" height="6" rx="1" fill="#a5b4fc"/>
+  <rect x="92" y="78" width="12" height="6" rx="1" fill="#a5b4fc"/>
+
+  <!-- Inner chip detail -->
+  <rect x="44" y="44" width="40" height="40" rx="4" fill="#312e81"/>
+
+  <!-- Question mark -->
+  <text x="64" y="78" font-family="Arial, sans-serif" font-size="36" font-weight="bold"
+        fill="url(#questionGrad)" text-anchor="middle">?</text>
+</svg>
