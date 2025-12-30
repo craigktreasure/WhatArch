@@ -10,6 +10,8 @@ public class PeArchitectureReaderTests
 
     private const string SampleAppName = "SampleApp";
 
+    private static IPath Path => FileSystem.Path;
+
     [Fact]
     public void GetArchitecture_FileNotFound_ThrowsFileNotFoundException()
     {

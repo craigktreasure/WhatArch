@@ -1,12 +1,14 @@
 ﻿namespace WhatArch.Tests;
 
-using System.IO.Abstractions;
+using System.IO.Abstractions.TestingHelpers;
+using WhatArch.Abstractions;
+using WhatArch.Tests.TestUtilities;
 
 public class FileResolverTests
 {
-    private static readonly FileSystem FileSystem = new();
+    private readonly MockFileSystem _fileSystem = new();
 
-    private static readonly string TestBinariesPath = TestHelpers.GetTestBinariesPath();
+    private readonly FakeEnvironmentVariableProvider _variableProvider = new();
 
     #region ShouldSearchPath Tests
 
@@ -17,7 +19,7 @@ public class FileResolverTests
     public void ShouldSearchPath_BareFilename_ReturnsTrue(string path, bool expected)
     {
         // Act
-        bool result = FileResolver.ShouldSearchPath(FileSystem, path);
+        bool result = FileResolver.ShouldSearchPath(_fileSystem, path);
 
         // Assert
         Assert.Equal(expected, result);
@@ -30,7 +32,7 @@ public class FileResolverTests
     public void ShouldSearchPath_AbsolutePath_ReturnsFalse(string path)
     {
         // Act
-        bool result = FileResolver.ShouldSearchPath(FileSystem, path);
+        bool result = FileResolver.ShouldSearchPath(_fileSystem, path);
 
         // Assert
         Assert.False(result);
@@ -44,7 +46,7 @@ public class FileResolverTests
     public void ShouldSearchPath_RelativePathWithSeparator_ReturnsFalse(string path)
     {
         // Act
-        bool result = FileResolver.ShouldSearchPath(FileSystem, path);
+        bool result = FileResolver.ShouldSearchPath(_fileSystem, path);
 
         // Assert
         Assert.False(result);
@@ -57,34 +59,39 @@ public class FileResolverTests
     [Fact]
     public void TryResolve_NullPath_ThrowsArgumentNullException()
     {
+        // Arrange
+        FakeEnvironmentVariableProvider variableProvider = new();
+
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => FileResolver.TryResolve(null!, "something", out _));
-        Assert.Throws<ArgumentNullException>(() => FileResolver.TryResolve(FileSystem, null!, out _));
+        Assert.Throws<ArgumentNullException>(() => FileResolver.TryResolve(null!, "something", variableProvider, out _));
+        Assert.Throws<ArgumentNullException>(() => FileResolver.TryResolve(_fileSystem, null!, variableProvider, out _));
+        Assert.Throws<ArgumentNullException>(() => FileResolver.TryResolve(_fileSystem, "something", (IEnvironmentVariableProvider)null!, out _));
     }
 
     [Fact]
     public void TryResolve_ExistingAbsolutePath_ReturnsTrue()
     {
         // Arrange
-        string filePath = Path.Combine(TestBinariesPath, "release_net10.0_anycpu", "SampleApp.dll");
+        string filePath = PopulateFileSystemAndPathWithBinary();
 
         // Act
-        bool result = FileResolver.TryResolve(FileSystem, filePath, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(_fileSystem, filePath, _variableProvider, out string? resolvedPath);
 
         // Assert
         Assert.True(result);
         Assert.NotNull(resolvedPath);
-        Assert.True(File.Exists(resolvedPath));
+        Assert.True(_fileSystem.File.Exists(resolvedPath));
     }
 
     [Fact]
     public void TryResolve_NonExistingPath_ReturnsFalse()
     {
         // Arrange
-        string filePath = Path.Combine(TestBinariesPath, "non_existent_file.exe");
+        FakeEnvironmentVariableProvider variableProvider = new();
+        string filePath = "C:/non_existent_file.exe";
 
         // Act
-        bool result = FileResolver.TryResolve(FileSystem, filePath, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(_fileSystem, filePath, variableProvider, out string? resolvedPath);
 
         // Assert
         Assert.False(result);
@@ -94,28 +101,28 @@ public class FileResolverTests
     [Fact]
     public void TryResolve_BareFilenameInPath_ReturnsTrue()
     {
-        // Arrange - Use the test binaries directory as a mock PATH
-        string mockPath = Path.Combine(TestBinariesPath, "release_net10.0_anycpu");
-        string filename = "SampleApp.dll";
+        // Arrange
+        string filePath = PopulateFileSystemAndPathWithBinary();
+        string fileName = _fileSystem.Path.GetFileName(filePath);
 
         // Act
-        bool result = FileResolver.TryResolve(FileSystem, filename, mockPath, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(_fileSystem, fileName, _variableProvider, out string? resolvedPath);
 
         // Assert
         Assert.True(result);
         Assert.NotNull(resolvedPath);
-        Assert.EndsWith("SampleApp.dll", resolvedPath, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith(fileName, resolvedPath, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void TryResolve_BareFilenameNotInPath_ReturnsFalse()
     {
         // Arrange
-        string mockPath = TestBinariesPath; // Directory exists but doesn't contain the file directly
-        string filename = "nonexistent.exe";
+        string filePath = PopulateFileSystemAndPathWithBinary(skipAddFile: true);
+        string fileName = _fileSystem.Path.GetFileName(filePath);
 
         // Act
-        bool result = FileResolver.TryResolve(FileSystem, filename, mockPath, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(_fileSystem, fileName, _variableProvider, out string? resolvedPath);
 
         // Assert
         Assert.False(result);
@@ -126,32 +133,49 @@ public class FileResolverTests
     public void TryResolve_MultiplePaths_FindsInSecondPath()
     {
         // Arrange
-        string emptyDir = Path.GetTempPath();
-        string validDir = Path.Combine(TestBinariesPath, "release_net10.0_anycpu");
-        string mockPath = $"{emptyDir}{Path.PathSeparator}{validDir}";
-        string filename = "SampleApp.dll";
+        AddToPath(@"C:/foo");
+        string filePath = PopulateFileSystemAndPathWithBinary();
+        string fileName = _fileSystem.Path.GetFileName(filePath);
+        string expectedDirectoryName = _fileSystem.Path.GetDirectoryName(filePath)!;
 
         // Act
-        bool result = FileResolver.TryResolve(FileSystem, filename, mockPath, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(_fileSystem, fileName, _variableProvider, out string? resolvedPath);
 
         // Assert
         Assert.True(result);
         Assert.NotNull(resolvedPath);
-        Assert.Contains("release_net10.0_anycpu", resolvedPath, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(expectedDirectoryName, resolvedPath, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void TryResolve_EmptyPath_ReturnsFalse()
     {
         // Arrange
+        _variableProvider.SetPath(string.Empty);
         string filename = "SampleApp.dll";
 
         // Act
-        bool result = FileResolver.TryResolve(FileSystem, filename, "", out string? resolvedPath);
+        bool result = FileResolver.TryResolve(_fileSystem, filename, _variableProvider, out string? resolvedPath);
 
         // Assert
         Assert.False(result);
         Assert.Null(resolvedPath);
+    }
+
+    [Fact]
+    public void TryResolve_EmptyPathValue_ReturnsFalse()
+    {
+        // Arrange
+        _variableProvider.SetPath(string.Empty);
+        string filePath = PopulateFileSystemAndPathWithBinary();
+        string fileName = _fileSystem.Path.GetFileName(filePath);
+
+        // Act
+        bool result = FileResolver.TryResolve(_fileSystem, fileName, _variableProvider, out string? resolvedPath);
+
+        // Assert
+        Assert.True(result);
+        Assert.NotNull(resolvedPath);
     }
 
     [Fact]
@@ -161,7 +185,7 @@ public class FileResolverTests
         string filename = "nonexistent.exe";
 
         // Act
-        bool result = FileResolver.TryResolve(FileSystem, filename, null, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(_fileSystem, filename, _variableProvider, out string? resolvedPath);
 
         // Assert
         Assert.False(result);
@@ -172,12 +196,12 @@ public class FileResolverTests
     public void TryResolve_RelativePathWithSeparator_DoesNotSearchPath()
     {
         // Arrange - Even if the file exists in PATH, relative paths shouldn't trigger PATH search
-        string validDir = Path.Combine(TestBinariesPath, "release_net10.0_anycpu");
-        string mockPath = validDir;
-        string relativePath = @"subdir\SampleApp.dll"; // This shouldn't search PATH
+        string filePath = PopulateFileSystemAndPathWithBinary();
+        string fileName = _fileSystem.Path.GetFileName(filePath);
+        string relativePath = $"subdir/{fileName}"; // This shouldn't search PATH
 
         // Act
-        bool result = FileResolver.TryResolve(FileSystem, relativePath, mockPath, out string? resolvedPath);
+        bool result = FileResolver.TryResolve(_fileSystem, relativePath, _variableProvider, out string? resolvedPath);
 
         // Assert
         Assert.False(result);
@@ -185,4 +209,28 @@ public class FileResolverTests
     }
 
     #endregion
+
+    private void AddToPath(string directoryPath, bool createDirectory = true)
+    {
+        if (createDirectory && !_fileSystem.Directory.Exists(directoryPath))
+        {
+            _fileSystem.AddDirectory(directoryPath);
+        }
+
+        _variableProvider.AppendToPath(directoryPath);
+    }
+
+    private string PopulateFileSystemAndPathWithBinary(bool skipAddFile = false)
+    {
+        string binaryFilePath = @"C:\binaries\app.exe";
+        string binariesDirectoryPath = _fileSystem.Path.GetDirectoryName(binaryFilePath)!;
+        AddToPath(binariesDirectoryPath);
+
+        if (!skipAddFile)
+        {
+            _fileSystem.AddFile(binaryFilePath, new MockFileData("Dummy content"));
+        }
+
+        return binaryFilePath;
+    }
 }

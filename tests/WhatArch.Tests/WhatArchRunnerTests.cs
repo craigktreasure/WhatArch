@@ -1,6 +1,7 @@
 ﻿namespace WhatArch.Tests;
 
 using System.IO.Abstractions;
+using WhatArch.Abstractions;
 
 public class WhatArchRunnerTests
 {
@@ -9,6 +10,10 @@ public class WhatArchRunnerTests
     private static readonly string[] ValidNativeArchitectures = ["x86", "x64", "ARM64", "ARM"];
 
     private static readonly FileSystem FileSystem = new();
+
+    private static readonly EnvironmentVariableProvider VariableProvider = new();
+
+    private static IPath Path => FileSystem.Path;
 
     #region Success Cases - Test Binaries
 
@@ -23,7 +28,7 @@ public class WhatArchRunnerTests
         string filePath = Path.Combine(TestBinariesPath, folder, filename);
 
         // Act
-        var result = WhatArchRunner.Run(FileSystem, path: filePath);
+        var result = WhatArchRunner.Run(FileSystem, filePath, VariableProvider);
 
         // Assert
         Assert.Equal(0, result.ExitCode);
@@ -41,7 +46,7 @@ public class WhatArchRunnerTests
         string filePath = Path.Combine(TestBinariesPath, folder, filename);
 
         // Act
-        var result = WhatArchRunner.Run(FileSystem, path: filePath);
+        var result = WhatArchRunner.Run(FileSystem, filePath, VariableProvider);
 
         // Assert
         Assert.Equal(0, result.ExitCode);
@@ -60,7 +65,7 @@ public class WhatArchRunnerTests
         string filename = "cmd.exe";
 
         // Act
-        var result = WhatArchRunner.Run(FileSystem, filename);
+        var result = WhatArchRunner.Run(FileSystem, filename, VariableProvider);
 
         // Assert
         Assert.Equal(0, result.ExitCode);
@@ -76,7 +81,7 @@ public class WhatArchRunnerTests
         string filename = "notepad.exe";
 
         // Act
-        var result = WhatArchRunner.Run(FileSystem, filename);
+        var result = WhatArchRunner.Run(FileSystem, filename, VariableProvider);
 
         // Assert
         Assert.Equal(0, result.ExitCode);
@@ -92,7 +97,7 @@ public class WhatArchRunnerTests
         string filename = "dotnet.exe";
 
         // Act
-        var result = WhatArchRunner.Run(FileSystem, filename);
+        var result = WhatArchRunner.Run(FileSystem, filename, VariableProvider);
 
         // Assert - May fail if dotnet isn't in PATH, which is acceptable
         if (result.ExitCode == 0)
@@ -114,7 +119,7 @@ public class WhatArchRunnerTests
         string filename = "this_file_definitely_does_not_exist_12345.exe";
 
         // Act
-        var result = WhatArchRunner.Run(FileSystem, filename);
+        var result = WhatArchRunner.Run(FileSystem, filename, VariableProvider);
 
         // Assert
         Assert.Equal(1, result.ExitCode);
@@ -131,7 +136,7 @@ public class WhatArchRunnerTests
         string filePath = @"C:\NonExistent\Directory\file.exe";
 
         // Act
-        var result = WhatArchRunner.Run(FileSystem, filePath);
+        var result = WhatArchRunner.Run(FileSystem, filePath, VariableProvider);
 
         // Assert
         Assert.Equal(1, result.ExitCode);
@@ -149,7 +154,7 @@ public class WhatArchRunnerTests
         string filePath = Path.Combine(TestBinariesPath, "..", "not_a_pe.txt");
 
         // Act
-        var result = WhatArchRunner.Run(FileSystem, filePath);
+        var result = WhatArchRunner.Run(FileSystem, filePath, VariableProvider);
 
         // Assert
         Assert.Equal(1, result.ExitCode);
@@ -169,7 +174,7 @@ public class WhatArchRunnerTests
         string relativePath = @"subdir\cmd.exe";
 
         // Act
-        var result = WhatArchRunner.Run(FileSystem, relativePath);
+        var result = WhatArchRunner.Run(FileSystem, relativePath, VariableProvider);
 
         // Assert
         Assert.Equal(1, result.ExitCode);

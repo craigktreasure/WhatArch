@@ -1,6 +1,7 @@
 ﻿namespace WhatArch;
 
 using System.IO.Abstractions;
+using WhatArch.Abstractions;
 
 /// <summary>
 /// Resolves file paths by searching the current directory and PATH environment variable.
@@ -14,27 +15,16 @@ internal static class FileResolver
     /// </summary>
     /// <param name="fileSystem">The file system abstraction.</param>
     /// <param name="path">The file path to resolve.</param>
+    /// <param name="environmentVariableProvider">The environment variable provider.</param>
     /// <param name="resolvedPath">The resolved absolute path if found.</param>
     /// <returns>True if the file was found, false otherwise.</returns>
-    public static bool TryResolve(IFileSystem fileSystem, string path, out string? resolvedPath)
-    {
-        return TryResolve(fileSystem, path, Environment.GetEnvironmentVariable("PATH"), out resolvedPath);
-    }
-
-    /// <summary>
-    /// Attempts to resolve a file path by searching:
-    /// 1. As-is (absolute or relative to current directory)
-    /// 2. PATH environment variable (for bare filenames only)
-    /// </summary>
-    /// <param name="fileSystem">The file system abstraction.</param>
-    /// <param name="path">The file path to resolve.</param>
-    /// <param name="pathEnvironment">The PATH environment variable value.</param>
-    /// <param name="resolvedPath">The resolved absolute path if found.</param>
-    /// <returns>True if the file was found, false otherwise.</returns>
-    public static bool TryResolve(IFileSystem fileSystem, string path, string? pathEnvironment, out string? resolvedPath)
+    public static bool TryResolve(IFileSystem fileSystem, string path, IEnvironmentVariableProvider environmentVariableProvider, out string? resolvedPath)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(environmentVariableProvider);
+
+        string? pathEnvironment = environmentVariableProvider.GetEnvironmentVariable("PATH");
 
         // Try as-is (absolute or relative to current directory)
         if (fileSystem.File.Exists(path))

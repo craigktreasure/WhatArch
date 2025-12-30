@@ -1,38 +1,15 @@
 ﻿namespace WhatArch.Tests;
 
 using System.IO.Abstractions;
+using System.IO.Abstractions.TestingHelpers;
 
 /// <summary>
 /// Tests using synthetically constructed PE files to cover edge cases
 /// that are difficult to test with real binaries.
 /// </summary>
-public sealed class PeArchitectureReaderSyntheticTests : IDisposable
+public sealed class PeArchitectureReaderSyntheticTests
 {
-    private static readonly FileSystem FileSystem = new();
-
-    private readonly List<string> _tempFiles = [];
-
-    public void Dispose()
-    {
-        foreach (string file in _tempFiles)
-        {
-            try
-            {
-                File.Delete(file);
-            }
-            catch (IOException)
-            {
-                // Ignore cleanup failures
-            }
-        }
-    }
-
-    private string SaveTempFile(byte[] data, string name)
-    {
-        string path = TestPeBuilder.SaveToTempFile(FileSystem, data, $"{Guid.NewGuid()}_{name}");
-        _tempFiles.Add(path);
-        return path;
-    }
+    private readonly MockFileSystem _fileSystem = new();
 
     #region Native Binary Tests with Synthetic PEs
 
@@ -45,10 +22,10 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
     {
         // Arrange
         byte[] peData = TestPeBuilder.CreateMinimalPe(machineType);
-        string filePath = SaveTempFile(peData, $"native_{expectedArch}.exe");
+        string filePath = SaveTempFile(_fileSystem, peData, $"native_{expectedArch}.exe");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
 
         // Assert
         Assert.Equal(expectedArch, actualArch);
@@ -60,10 +37,10 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         // Arrange
         ushort unknownMachine = 0x9999;
         byte[] peData = TestPeBuilder.CreateMinimalPe(unknownMachine);
-        string filePath = SaveTempFile(peData, "unknown_machine.exe");
+        string filePath = SaveTempFile(_fileSystem, peData, "unknown_machine.exe");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
 
         // Assert
         Assert.Equal("Unknown (0x9999)", actualArch);
@@ -74,10 +51,10 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
     {
         // Arrange
         byte[] peData = TestPeBuilder.CreatePeWithNoOptionalHeader(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64);
-        string filePath = SaveTempFile(peData, "no_optional_header.exe");
+        string filePath = SaveTempFile(_fileSystem, peData, "no_optional_header.exe");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
 
         // Assert
         Assert.Equal("x64", actualArch);
@@ -88,10 +65,10 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
     {
         // Arrange - PE32+ is used for 64-bit binaries
         byte[] peData = TestPeBuilder.CreateMinimalPe(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, isPe32Plus: true);
-        string filePath = SaveTempFile(peData, "pe32plus.exe");
+        string filePath = SaveTempFile(_fileSystem, peData, "pe32plus.exe");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
 
         // Assert
         Assert.Equal("x64", actualArch);
@@ -107,10 +84,10 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         // Arrange - AnyCPU: x86 machine, ILONLY flag, no 32-bit flags
         const uint ILONLY = 0x00000001;
         byte[] peData = TestPeBuilder.CreateMinimalManagedPe(TestPeBuilder.IMAGE_FILE_MACHINE_I386, ILONLY);
-        string filePath = SaveTempFile(peData, "managed_anycpu.dll");
+        string filePath = SaveTempFile(_fileSystem, peData, "managed_anycpu.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
 
         // Assert
         Assert.Equal("AnyCPU (.NET)", actualArch);
@@ -123,10 +100,10 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         const uint ILONLY = 0x00000001;
         const uint PREFER32BIT = 0x00020000;
         byte[] peData = TestPeBuilder.CreateMinimalManagedPe(TestPeBuilder.IMAGE_FILE_MACHINE_I386, ILONLY | PREFER32BIT);
-        string filePath = SaveTempFile(peData, "managed_anycpu_prefer32.dll");
+        string filePath = SaveTempFile(_fileSystem, peData, "managed_anycpu_prefer32.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
 
         // Assert
         Assert.Equal("AnyCPU (.NET - 32-bit preferred)", actualArch);
@@ -139,10 +116,10 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         const uint ILONLY = 0x00000001;
         const uint REQUIRE32BIT = 0x00000002;
         byte[] peData = TestPeBuilder.CreateMinimalManagedPe(TestPeBuilder.IMAGE_FILE_MACHINE_I386, ILONLY | REQUIRE32BIT);
-        string filePath = SaveTempFile(peData, "managed_x86.dll");
+        string filePath = SaveTempFile(_fileSystem, peData, "managed_x86.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
 
         // Assert
         Assert.Equal("x86 (.NET)", actualArch);
@@ -153,10 +130,10 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
     {
         // Arrange - x64 .NET
         byte[] peData = TestPeBuilder.CreateMinimalManagedPe(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 0x00000001, isPe32Plus: true);
-        string filePath = SaveTempFile(peData, "managed_x64.dll");
+        string filePath = SaveTempFile(_fileSystem, peData, "managed_x64.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
 
         // Assert
         Assert.Equal("x64 (.NET)", actualArch);
@@ -167,10 +144,10 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
     {
         // Arrange - ARM64 .NET
         byte[] peData = TestPeBuilder.CreateMinimalManagedPe(TestPeBuilder.IMAGE_FILE_MACHINE_ARM64, 0x00000001, isPe32Plus: true);
-        string filePath = SaveTempFile(peData, "managed_arm64.dll");
+        string filePath = SaveTempFile(_fileSystem, peData, "managed_arm64.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
 
         // Assert
         Assert.Equal("ARM64 (.NET)", actualArch);
@@ -181,10 +158,10 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
     {
         // Arrange - ARM32 .NET (Thumb-2)
         byte[] peData = TestPeBuilder.CreateMinimalManagedPe(TestPeBuilder.IMAGE_FILE_MACHINE_ARMNT, 0x00000001);
-        string filePath = SaveTempFile(peData, "managed_arm.dll");
+        string filePath = SaveTempFile(_fileSystem, peData, "managed_arm.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
 
         // Assert
         Assert.Equal("ARM (.NET)", actualArch);
@@ -196,10 +173,10 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
         // Arrange - Unknown machine type for managed assembly
         ushort unknownMachine = 0x8888;
         byte[] peData = TestPeBuilder.CreateMinimalManagedPe(unknownMachine, 0x00000001);
-        string filePath = SaveTempFile(peData, "managed_unknown.dll");
+        string filePath = SaveTempFile(_fileSystem, peData, "managed_unknown.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
 
         // Assert
         Assert.Equal("Unknown (.NET, 0x8888)", actualArch);
@@ -210,10 +187,10 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
     {
         // Arrange - x86 machine but NOT IL-only (mixed mode or native + managed)
         byte[] peData = TestPeBuilder.CreateMinimalManagedPe(TestPeBuilder.IMAGE_FILE_MACHINE_I386, 0x00000000);
-        string filePath = SaveTempFile(peData, "managed_mixed_x86.dll");
+        string filePath = SaveTempFile(_fileSystem, peData, "managed_mixed_x86.dll");
 
         // Act
-        string actualArch = PeArchitectureReader.GetArchitecture(FileSystem, filePath);
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
 
         // Assert
         Assert.Equal("x86 (.NET)", actualArch);
@@ -228,10 +205,10 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
     {
         // Arrange
         byte[] data = TestPeBuilder.CreateInvalidMzSignature();
-        string filePath = SaveTempFile(data, "invalid_mz.exe");
+        string filePath = SaveTempFile(_fileSystem, data, "invalid_mz.exe");
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => PeArchitectureReader.GetArchitecture(FileSystem, filePath));
+        Assert.Throws<InvalidOperationException>(() => PeArchitectureReader.GetArchitecture(_fileSystem, filePath));
     }
 
     [Fact]
@@ -239,11 +216,14 @@ public sealed class PeArchitectureReaderSyntheticTests : IDisposable
     {
         // Arrange
         byte[] data = TestPeBuilder.CreateInvalidPeSignature();
-        string filePath = SaveTempFile(data, "invalid_pe.exe");
+        string filePath = SaveTempFile(_fileSystem, data, "invalid_pe.exe");
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => PeArchitectureReader.GetArchitecture(FileSystem, filePath));
+        Assert.Throws<InvalidOperationException>(() => PeArchitectureReader.GetArchitecture(_fileSystem, filePath));
     }
 
     #endregion
+
+    private static string SaveTempFile(IFileSystem fileSystem, byte[] data, string name)
+        => TestPeBuilder.SaveToTempFile(fileSystem, data, $"{Guid.NewGuid()}_{name}");
 }

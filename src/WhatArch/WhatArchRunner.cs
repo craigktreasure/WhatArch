@@ -1,6 +1,7 @@
 ﻿namespace WhatArch;
 
 using System.IO.Abstractions;
+using WhatArch.Abstractions;
 
 /// <summary>
 /// Core application logic for WhatArch, exposed for testability.
@@ -20,10 +21,11 @@ internal static class WhatArchRunner
     /// </summary>
     /// <param name="fileSystem">The file system abstraction.</param>
     /// <param name="path">The path to the binary file.</param>
+    /// <param name="environmentVariableProvider">The environment variable provider.</param>
     /// <returns>A result containing the exit code, output, and any error message.</returns>
-    public static RunResult Run(IFileSystem fileSystem, string path)
+    public static RunResult Run(IFileSystem fileSystem, string path, IEnvironmentVariableProvider environmentVariableProvider)
     {
-        if (!FileResolver.TryResolve(fileSystem, path, out string? resolvedPath))
+        if (!FileResolver.TryResolve(fileSystem, path, environmentVariableProvider, out string? resolvedPath))
         {
             string error = FileResolver.ShouldSearchPath(fileSystem, path)
                 ? $"Error: File not found: {path} (searched current directory and PATH)"
