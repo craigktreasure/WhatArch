@@ -1,19 +1,13 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/craigktreasure/WhatArch/main/assets/icon.png" alt="WhatArch logo" width="128" height="128">
-</p>
+![WhatArch](https://raw.githubusercontent.com/craigktreasure/WhatArch/main/assets/icon.png)
 
-<h1 align="center">WhatArch</h1>
+# WhatArch
 
-<p align="center">
-  A <a href="https://docs.microsoft.com/dotnet/core/tools/global-tools">.NET tool</a> for Windows that detects the target architecture of native binaries and .NET assemblies.
-</p>
+A [.NET tool](https://docs.microsoft.com/dotnet/core/tools/global-tools) for Windows that detects the target architecture of native binaries and .NET assemblies.
 
-<p align="center">
-  <a href="https://github.com/craigktreasure/WhatArch/actions/workflows/CI.yml"><img src="https://github.com/craigktreasure/WhatArch/actions/workflows/CI.yml/badge.svg?branch=main" alt="CI"></a>
-  <a href="https://codecov.io/gh/craigktreasure/WhatArch"><img src="https://codecov.io/gh/craigktreasure/WhatArch/branch/main/graph/badge.svg?token=OmUMjUGQb8" alt="codecov"></a>
-  <a href="https://www.nuget.org/packages/WhatArch/"><img src="https://img.shields.io/nuget/v/WhatArch" alt="NuGet"></a>
-  <a href="https://www.nuget.org/packages/WhatArch/"><img src="https://img.shields.io/nuget/dt/WhatArch" alt="NuGet Downloads"></a>
-</p>
+[![CI](https://github.com/craigktreasure/WhatArch/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/craigktreasure/WhatArch/actions/workflows/CI.yml)
+[![codecov](https://codecov.io/gh/craigktreasure/WhatArch/branch/main/graph/badge.svg?token=OmUMjUGQb8)](https://codecov.io/gh/craigktreasure/WhatArch)
+[![NuGet](https://img.shields.io/nuget/v/WhatArch)](https://www.nuget.org/packages/WhatArch/)
+[![NuGet](https://img.shields.io/nuget/dt/WhatArch)](https://www.nuget.org/packages/WhatArch/)
 
 ## Features
 
