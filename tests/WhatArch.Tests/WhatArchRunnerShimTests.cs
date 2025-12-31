@@ -1,4 +1,4 @@
-namespace WhatArch.Tests;
+﻿namespace WhatArch.Tests;
 
 using System.IO.Abstractions.TestingHelpers;
 using WhatArch.Tests.TestUtilities;
