@@ -1,5 +1,6 @@
 ﻿namespace WhatArch;
 
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Abstractions;
 using WhatArch.Abstractions;
 
@@ -18,7 +19,11 @@ internal static class FileResolver
     /// <param name="environmentVariableProvider">The environment variable provider.</param>
     /// <param name="resolvedPath">The resolved absolute path if found.</param>
     /// <returns>True if the file was found, false otherwise.</returns>
-    public static bool TryResolve(IFileSystem fileSystem, string path, IEnvironmentVariableProvider environmentVariableProvider, out string? resolvedPath)
+    public static bool TryResolve(
+        IFileSystem fileSystem,
+        string path,
+        IEnvironmentVariableProvider environmentVariableProvider,
+        [NotNullWhen(true)] out string? resolvedPath)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(path);

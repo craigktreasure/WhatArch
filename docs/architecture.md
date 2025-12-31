@@ -153,8 +153,58 @@ Simple CLI wrapper:
 - Calls `PeArchitectureReader.GetArchitecture()`
 - Outputs result or error message
 
+## Scoop Shim Support
+
+[Scoop](https://scoop.sh/) is a popular command-line installer for Windows. Instead of modifying the system PATH for every installed application, Scoop uses a "shim" strategy.
+
+### How Scoop Shims Work
+
+When you install an application via Scoop, it creates two files in `~/scoop/shims/`:
+
+1. **`<app>.exe`** - A small x86 executable that acts as a launcher
+2. **`<app>.shim`** - A plain text configuration file
+
+The shim executable reads the `.shim` file to find the real application path, then launches it with any provided arguments.
+
+### .shim File Format
+
+The `.shim` file is a simple key-value format:
+
+```
+path = C:\Users\username\scoop\apps\myapp\current\myapp.exe
+args = --some-default-arg
+```
+
+- **path** (required): The absolute path to the real executable
+- **args** (optional): Default arguments to pass to the executable
+
+### The Problem
+
+All Scoop shims are compiled as x86 executables (32-bit). When analyzing a shimmed application, WhatArch would report "x86" even if the real application is ARM64 or x64.
+
+### WhatArch Solution
+
+WhatArch automatically detects Scoop shims by:
+
+1. After resolving a file path, checking if a corresponding `.shim` file exists
+2. Parsing the `.shim` file for the `path = ` line
+3. If found, analyzing the target executable instead
+
+The output format shows both architectures:
+
+```
+x86 (shim) -> ARM64
+```
+
+This tells you:
+- The shim itself is x86
+- The real application is ARM64
+
+If there's no `.shim` file or it can't be parsed, WhatArch reports the architecture normally.
+
 ## References
 
 - [PE Format - Microsoft Docs](https://docs.microsoft.com/en-us/windows/win32/debug/pe-format)
 - [ECMA-335 (CLI Specification)](https://www.ecma-international.org/publications-and-standards/standards/ecma-335/)
 - [CorFlags.exe Tool](https://docs.microsoft.com/en-us/dotnet/framework/tools/corflags-exe-corflags-conversion-tool)
+- [Scoop Wiki - Shims](https://github.com/ScoopInstaller/Scoop/wiki/Shims)
