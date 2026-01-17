@@ -210,6 +210,62 @@ public class FileResolverTests
 
     #endregion
 
+    #region Exe Extension Tests
+
+    [Fact]
+    public void TryResolve_BareFilenameWithoutExtension_FindsWithExeExtension()
+    {
+        // Arrange
+        string filePath = @"C:\binaries\notepad.exe";
+        string binariesDirectoryPath = _fileSystem.Path.GetDirectoryName(filePath)!;
+        _fileSystem.AddFile(filePath, new MockFileData("Dummy content"));
+        AddToPath(binariesDirectoryPath);
+
+        // Act
+        bool result = FileResolver.TryResolve(_fileSystem, "notepad", _variableProvider, out string? resolvedPath);
+
+        // Assert
+        Assert.True(result);
+        Assert.NotNull(resolvedPath);
+        Assert.EndsWith(".exe", resolvedPath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TryResolve_FilenameWithExtension_DoesNotAddExe()
+    {
+        // Arrange - notepad.exe doesn't exist but notepad.exe.exe does
+        string filePath = @"C:\binaries\notepad.exe.exe";
+        string binariesDirectoryPath = _fileSystem.Path.GetDirectoryName(filePath)!;
+        _fileSystem.AddFile(filePath, new MockFileData("Dummy content"));
+        AddToPath(binariesDirectoryPath);
+
+        // Act
+        bool result = FileResolver.TryResolve(_fileSystem, "notepad.exe", _variableProvider, out string? resolvedPath);
+
+        // Assert
+        Assert.False(result);
+        Assert.Null(resolvedPath);
+    }
+
+    [Fact]
+    public void TryResolve_CurrentDirectoryWithExeExtension_FindsFile()
+    {
+        // Arrange - file in current directory (not in PATH)
+        string currentDir = _fileSystem.Directory.GetCurrentDirectory();
+        string filePath = _fileSystem.Path.Combine(currentDir, "myapp.exe");
+        _fileSystem.AddFile(filePath, new MockFileData("Dummy content"));
+
+        // Act
+        bool result = FileResolver.TryResolve(_fileSystem, "myapp", _variableProvider, out string? resolvedPath);
+
+        // Assert
+        Assert.True(result);
+        Assert.NotNull(resolvedPath);
+        Assert.EndsWith(".exe", resolvedPath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    #endregion
+
     private void AddToPath(string directoryPath, bool createDirectory = true)
     {
         if (createDirectory && !_fileSystem.Directory.Exists(directoryPath))

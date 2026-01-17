@@ -13,6 +13,7 @@ internal static class FileResolver
     /// Attempts to resolve a file path by searching:
     /// 1. As-is (absolute or relative to current directory)
     /// 2. PATH environment variable (for bare filenames only)
+    /// On Windows, .exe extension is added if no extension is provided.
     /// </summary>
     /// <param name="fileSystem">The file system abstraction.</param>
     /// <param name="path">The file path to resolve.</param>
@@ -28,6 +29,12 @@ internal static class FileResolver
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(environmentVariableProvider);
+
+        // On Windows, add .exe if no extension provided
+        if (OperatingSystem.IsWindows() && !fileSystem.Path.HasExtension(path))
+        {
+            path += ".exe";
+        }
 
         string? pathEnvironment = environmentVariableProvider.GetEnvironmentVariable("PATH");
 
