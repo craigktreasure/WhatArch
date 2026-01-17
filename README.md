@@ -42,7 +42,14 @@ whatarch <path-to-binary>
 ### Examples
 
 ```shell
-# Native binaries
+# Native binaries (by name - searches PATH, adds .exe automatically on Windows)
+whatarch notepad
+> ARM64
+
+whatarch cmd
+> x64
+
+# Native binaries (by path)
 whatarch C:\Windows\System32\kernel32.dll
 > x64
 
