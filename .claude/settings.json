@@ -1,0 +1,14 @@
+﻿{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build:*)",
+      "Bash(dotnet run:*)",
+      "Bash(dotnet test)",
+      "Bash(dotnet list:*)",
+      "PowerShell(dotnet build *)",
+      "PowerShell(dotnet test *)",
+      "PowerShell(dotnet sdk check *)",
+      "PowerShell(dotnet list package *)"
+    ]
+  }
+}
