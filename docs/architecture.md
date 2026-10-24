@@ -147,7 +147,12 @@ Hybrid images carry metadata that the loader uses to switch between code, and th
 2. Read the structure's first field, `Size`. Older linkers write a shorter structure, so only continue if it's large enough to contain `CHPEMetadataPointer`.
 3. Read `CHPEMetadataPointer` at offset 200 in `IMAGE_LOAD_CONFIG_DIRECTORY64`. A non-zero value marks a hybrid image.
 
-WhatArch only checks PE32+ images with an x64 or ARM64 Machine value. If the directory is missing, too small, outside every section, or truncated, the binary is reported by its Machine value alone.
+WhatArch only checks PE32+ images with an x64 or ARM64 Machine value. The binary is reported by its Machine value alone if the directory:
+
+- isn't declared (its index is beyond `NumberOfRvaAndSizes`)
+- is too small to contain `CHPEMetadataPointer`
+- is outside every section, or extends past the section's data in the file (its `SizeOfRawData`)
+- is cut off by the end of the file
 
 Windows 10 on Arm also shipped hybrid 32-bit x86 binaries, marked `(CHPE)` by `dumpbin` (for example, `C:\Windows\SyChpe32\kernel32.dll`). They keep the x86 Machine value and use the same field in `IMAGE_LOAD_CONFIG_DIRECTORY32`, but WhatArch doesn't check it, so they're reported as x86.
 

@@ -104,14 +104,17 @@ internal static class PeArchitectureReader
         int dataDirectoryOffset = isPE32Plus ? 112 : 96;
         long dataDirectoryStart = optionalHeaderStart + dataDirectoryOffset;
 
+        // NumberOfRvaAndSizes (the last field before the Data Directory) says how many entries the image has.
+        // Entries past it, or past the end of the optional header, don't exist.
+        stream.Seek(dataDirectoryStart - 4, SeekOrigin.Begin);
+        uint numberOfRvaAndSizes = reader.ReadUInt32();
+        int dataDirectoryCount = (int)Math.Min(numberOfRvaAndSizes, (uint)Math.Max(0, (sizeOfOptionalHeader - dataDirectoryOffset) / 8));
+
         // Read Load Config entry (index 10)
-        stream.Seek(dataDirectoryStart + (LOAD_CONFIG_DIRECTORY_INDEX * 8), SeekOrigin.Begin);
-        uint loadConfigRva = reader.ReadUInt32();
+        (uint loadConfigRva, _) = ReadDataDirectory(reader, stream, dataDirectoryStart, dataDirectoryCount, LOAD_CONFIG_DIRECTORY_INDEX);
 
         // Read CLR Runtime Header entry (index 14)
-        stream.Seek(dataDirectoryStart + (CLR_HEADER_DIRECTORY_INDEX * 8), SeekOrigin.Begin);
-        uint clrRva = reader.ReadUInt32();
-        uint clrSize = reader.ReadUInt32();
+        (uint clrRva, uint clrSize) = ReadDataDirectory(reader, stream, dataDirectoryStart, dataDirectoryCount, CLR_HEADER_DIRECTORY_INDEX);
 
         // If no CLR header, it's a native binary
         if (clrRva == 0 || clrSize == 0)
@@ -130,9 +133,20 @@ internal static class PeArchitectureReader
         return GetManagedArchName(machine, corFlags);
     }
 
+    private static (uint Rva, uint Size) ReadDataDirectory(BinaryReader reader, FileSystemStream stream, long dataDirectoryStart, int dataDirectoryCount, int index)
+    {
+        if (index >= dataDirectoryCount)
+        {
+            return (0, 0);
+        }
+
+        stream.Seek(dataDirectoryStart + (index * 8), SeekOrigin.Begin);
+        return (reader.ReadUInt32(), reader.ReadUInt32());
+    }
+
     private static uint ReadCorFlags(BinaryReader reader, FileSystemStream stream, long sectionStart, ushort numberOfSections, uint clrRva)
     {
-        if (!TryGetFileOffset(reader, stream, sectionStart, numberOfSections, clrRva, out long fileOffset))
+        if (!TryGetFileOffset(reader, stream, sectionStart, numberOfSections, clrRva, out long fileOffset, out _))
         {
             return 0; // Couldn't read CorFlags, treat as native
         }
@@ -145,8 +159,10 @@ internal static class PeArchitectureReader
 
     private static bool HasChpeMetadata(BinaryReader reader, FileSystemStream stream, long sectionStart, ushort numberOfSections, uint loadConfigRva)
     {
+        // The pointer must lie within the section's data in the file, not in the zero-filled space beyond it or past the end of the file
         if (loadConfigRva == 0
-            || !TryGetFileOffset(reader, stream, sectionStart, numberOfSections, loadConfigRva, out long fileOffset)
+            || !TryGetFileOffset(reader, stream, sectionStart, numberOfSections, loadConfigRva, out long fileOffset, out long bytesInSection)
+            || bytesInSection < CHPE_METADATA_POINTER_OFFSET64 + 8
             || fileOffset + CHPE_METADATA_POINTER_OFFSET64 + 8 > stream.Length)
         {
             return false;
@@ -164,7 +180,7 @@ internal static class PeArchitectureReader
         return reader.ReadUInt64() != 0;
     }
 
-    private static bool TryGetFileOffset(BinaryReader reader, FileSystemStream stream, long sectionStart, ushort numberOfSections, uint rva, out long fileOffset)
+    private static bool TryGetFileOffset(BinaryReader reader, FileSystemStream stream, long sectionStart, ushort numberOfSections, uint rva, out long fileOffset, out long bytesInSection)
     {
         // Find the section containing the RVA
         for (int i = 0; i < numberOfSections; i++)
@@ -173,17 +189,30 @@ internal static class PeArchitectureReader
             stream.Seek(8, SeekOrigin.Current); // Skip Name
             uint virtualSize = reader.ReadUInt32();
             uint virtualAddress = reader.ReadUInt32();
-            stream.Seek(4, SeekOrigin.Current); // Skip SizeOfRawData
+            uint sizeOfRawData = reader.ReadUInt32();
             uint pointerToRawData = reader.ReadUInt32();
 
-            if (rva >= virtualAddress && rva < virtualAddress + virtualSize)
+            // Some linkers leave VirtualSize as 0, in which case the section's extent is its raw data
+            uint sectionSize = virtualSize != 0 ? virtualSize : sizeOfRawData;
+
+            // Subtracting rather than adding avoids overflow for sections near the top of the address space
+            uint offsetInSection = rva - virtualAddress;
+            if (rva >= virtualAddress && offsetInSection < sectionSize)
             {
-                fileOffset = pointerToRawData + (rva - virtualAddress);
+                // Only the first SizeOfRawData bytes come from the file; the rest of the section is zero-filled in memory
+                if (offsetInSection >= sizeOfRawData)
+                {
+                    break;
+                }
+
+                fileOffset = pointerToRawData + offsetInSection;
+                bytesInSection = sizeOfRawData - offsetInSection;
                 return true;
             }
         }
 
         fileOffset = 0;
+        bytesInSection = 0;
         return false;
     }
 

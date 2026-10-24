@@ -46,8 +46,9 @@ internal static class TestPeBuilder
         // Optional Header
         writer.Write(isPe32Plus ? (ushort)0x20b : (ushort)0x10b); // Magic (PE32 or PE32+)
 
-        // Fill optional header standard fields
-        writer.Write(new byte[optionalHeaderBase - 2]);
+        // Fill optional header standard fields, ending with NumberOfRvaAndSizes
+        writer.Write(new byte[optionalHeaderBase - 6]);
+        writer.Write(16u);
 
         // Data Directories (16 entries, 8 bytes each) - all zeros for native binary
         writer.Write(new byte[dataDirectoriesSize]);
@@ -92,8 +93,9 @@ internal static class TestPeBuilder
         // Optional Header
         writer.Write(isPe32Plus ? (ushort)0x20b : (ushort)0x10b); // Magic
 
-        // Fill standard fields (we need to get to data directories)
-        writer.Write(new byte[optionalHeaderBase - 2]);
+        // Fill standard fields (we need to get to data directories), ending with NumberOfRvaAndSizes
+        writer.Write(new byte[optionalHeaderBase - 6]);
+        writer.Write(16u);
 
         // Data Directories (16 entries, 8 bytes each)
         for (int i = 0; i < 14; i++)
@@ -148,12 +150,18 @@ internal static class TestPeBuilder
     /// <param name="loadConfigSize">The load configuration's Size field. The pointer is always written, whatever the size says.</param>
     /// <param name="loadConfigInSection">Whether the load configuration RVA falls inside the section.</param>
     /// <param name="corFlags">When set, adds a CLR header with these CorFlags, making the file a .NET assembly.</param>
+    /// <param name="numberOfRvaAndSizes">The optional header's NumberOfRvaAndSizes. All 16 entries are written regardless.</param>
+    /// <param name="sectionRawSize">The section's SizeOfRawData. The file always contains 0x200 bytes of section data.</param>
+    /// <param name="sectionRva">The section's VirtualAddress. The section's VirtualSize is 0x1000.</param>
     public static byte[] CreatePeWithLoadConfig(
         ushort machineType,
         ulong chpeMetadataPointer,
         uint loadConfigSize = 320,
         bool loadConfigInSection = true,
-        uint? corFlags = null)
+        uint? corFlags = null,
+        uint numberOfRvaAndSizes = 16,
+        uint sectionRawSize = 0x200,
+        uint sectionRva = 0x2000)
     {
         using MemoryStream ms = new();
         using BinaryWriter writer = new(ms);
@@ -162,10 +170,9 @@ internal static class TestPeBuilder
         int optionalHeaderBase = 112; // PE32+ standard fields before data directories
         int dataDirectoriesSize = 16 * 8; // 16 entries, 8 bytes each
         int optionalHeaderSize = optionalHeaderBase + dataDirectoriesSize;
-        int sectionRva = 0x2000;
         int sectionFileOffset = 0x200;
-        int loadConfigRva = loadConfigInSection ? sectionRva : 0x9000;
-        int clrHeaderOffsetInSection = 0x180; // after the load config
+        uint loadConfigRva = loadConfigInSection ? sectionRva : 0x9000;
+        uint clrHeaderOffsetInSection = 0x180; // after the load config
         const int chpeMetadataPointerOffset = 200; // IMAGE_LOAD_CONFIG_DIRECTORY64.CHPEMetadataPointer
 
         // DOS Header
@@ -187,7 +194,8 @@ internal static class TestPeBuilder
 
         // Optional Header
         writer.Write((ushort)0x20b);    // Magic (PE32+)
-        writer.Write(new byte[optionalHeaderBase - 2]);
+        writer.Write(new byte[optionalHeaderBase - 6]);
+        writer.Write(numberOfRvaAndSizes);
 
         // Data Directories (16 entries, 8 bytes each)
         for (int i = 0; i < 10; i++)
@@ -196,12 +204,12 @@ internal static class TestPeBuilder
             writer.Write((uint)0); // Size
         }
         // Entry 10: Load Config
-        writer.Write((uint)loadConfigRva);
+        writer.Write(loadConfigRva);
         writer.Write(loadConfigSize);
         // Entries 11-13: unused
         writer.Write(new byte[3 * 8]);
         // Entry 14: CLR Runtime Header (only for .NET assemblies)
-        writer.Write(corFlags.HasValue ? (uint)(sectionRva + clrHeaderOffsetInSection) : 0u);
+        writer.Write(corFlags.HasValue ? sectionRva + clrHeaderOffsetInSection : 0u);
         writer.Write(corFlags.HasValue ? 72u : 0u);
         // Entry 15: Reserved
         writer.Write(new byte[8]);
@@ -209,8 +217,8 @@ internal static class TestPeBuilder
         // Section Header (.rdata) - 40 bytes
         writer.Write(new byte[8] { (byte)'.', (byte)'r', (byte)'d', (byte)'a', (byte)'t', (byte)'a', 0, 0 }); // Name
         writer.Write((uint)0x1000);            // VirtualSize
-        writer.Write((uint)sectionRva);        // VirtualAddress
-        writer.Write((uint)0x200);             // SizeOfRawData
+        writer.Write(sectionRva);              // VirtualAddress
+        writer.Write(sectionRawSize);          // SizeOfRawData
         writer.Write((uint)sectionFileOffset); // PointerToRawData
         writer.Write(new byte[16]);            // Relocations, line numbers, characteristics
 

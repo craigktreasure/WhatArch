@@ -168,6 +168,70 @@ public sealed class PeArchitectureReaderSyntheticTests
 
     #endregion
 
+    #region Malformed Header Tests with Synthetic PEs
+
+    [Theory]
+    [InlineData(10u, "x64")]     // the Load Config entry (index 10) isn't declared, so it's ignored
+    [InlineData(11u, "ARM64EC")] // the smallest count that includes it
+    public void GetArchitecture_NumberOfRvaAndSizes_IgnoresUndeclaredLoadConfig(uint numberOfRvaAndSizes, string expectedArch)
+    {
+        // Arrange
+        byte[] peData = TestPeBuilder.CreatePeWithLoadConfig(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 0x140073CA8UL, numberOfRvaAndSizes: numberOfRvaAndSizes);
+        string filePath = SaveTempFile(_fileSystem, peData, $"rva_count{numberOfRvaAndSizes}.exe");
+
+        // Act
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
+
+        // Assert
+        Assert.Equal(expectedArch, actualArch);
+    }
+
+    [Fact]
+    public void GetArchitecture_NumberOfRvaAndSizesExcludesClrHeader_TreatsAsNative()
+    {
+        // Arrange - a CLR header entry is written but only 14 entries are declared, so it isn't a directory
+        byte[] peData = TestPeBuilder.CreatePeWithLoadConfig(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 0UL, corFlags: 0x00000001, numberOfRvaAndSizes: 14);
+        string filePath = SaveTempFile(_fileSystem, peData, "rva_count14_clr.dll");
+
+        // Act
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
+
+        // Assert
+        Assert.Equal("x64", actualArch);
+    }
+
+    [Theory]
+    [InlineData(0x80u, "x64")]     // the pointer at offset 200 is past the section's raw data, even though the file has bytes there
+    [InlineData(0xD0u, "ARM64EC")] // raw data ends exactly at the end of the pointer
+    public void GetArchitecture_SectionRawSize_OnlyReadsPointerFromFileData(uint sectionRawSize, string expectedArch)
+    {
+        // Arrange
+        byte[] peData = TestPeBuilder.CreatePeWithLoadConfig(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 0x140073CA8UL, sectionRawSize: sectionRawSize);
+        string filePath = SaveTempFile(_fileSystem, peData, $"raw_size{sectionRawSize:X}.exe");
+
+        // Act
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
+
+        // Assert
+        Assert.Equal(expectedArch, actualArch);
+    }
+
+    [Fact]
+    public void GetArchitecture_SectionAtTopOfAddressSpace_FindsLoadConfig()
+    {
+        // Arrange - VirtualAddress + VirtualSize (0xFFFFF000 + 0x1000) overflows a uint
+        byte[] peData = TestPeBuilder.CreatePeWithLoadConfig(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 0x140073CA8UL, sectionRva: 0xFFFFF000);
+        string filePath = SaveTempFile(_fileSystem, peData, "section_top.exe");
+
+        // Act
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
+
+        // Assert
+        Assert.Equal("ARM64EC", actualArch);
+    }
+
+    #endregion
+
     #region Managed (.NET) Binary Tests with Synthetic PEs
 
     [Fact]
