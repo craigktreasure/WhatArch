@@ -7,8 +7,8 @@ using System.IO.Abstractions;
 /// binaries and .NET assemblies.
 /// </summary>
 /// <remarks>This class is intended for use with Windows PE files, such as EXE and DLL files. It supports
-/// detection of both native and managed (.NET) architectures, including x86, x64, ARM, ARM64, and AnyCPU variants. All
-/// members are static and thread-safe.</remarks>
+/// detection of both native and managed (.NET) architectures, including x86, x64, ARM, ARM64, ARM64EC, ARM64X, and
+/// AnyCPU variants. All members are static and thread-safe.</remarks>
 internal static class PeArchitectureReader
 {
     // Machine type constants
@@ -20,7 +20,11 @@ internal static class PeArchitectureReader
     // PE format constants
     // private const ushort PE32_MAGIC = 0x10b;
     private const ushort PE32PLUS_MAGIC = 0x20b;
+    private const int LOAD_CONFIG_DIRECTORY_INDEX = 10;
     private const int CLR_HEADER_DIRECTORY_INDEX = 14;
+
+    // IMAGE_LOAD_CONFIG_DIRECTORY64.CHPEMetadataPointer, set for ARM64EC and ARM64X images
+    private const int CHPE_METADATA_POINTER_OFFSET64 = 200;
 
     // CorFlags constants
     private const uint COMIMAGE_FLAGS_ILONLY = 0x00000001;
@@ -38,8 +42,8 @@ internal static class PeArchitectureReader
     /// <param name="fileSystem">The file system abstraction to use for file operations. Cannot be null.</param>
     /// <param name="filePath">The path to the PE file whose architecture is to be identified. Cannot be null. The file must exist and be
     /// accessible for reading.</param>
-    /// <returns>A string representing the processor architecture of the specified file, such as "x86", "x64", "ARM", or "AnyCPU"
-    /// for .NET assemblies.</returns>
+    /// <returns>A string representing the processor architecture of the specified file, such as "x86", "x64", "ARM64EC",
+    /// "ARM64X", or "AnyCPU" for .NET assemblies.</returns>
     /// <exception cref="FileNotFoundException">Thrown if the file specified by <paramref name="filePath"/> does not exist.</exception>
     /// <exception cref="InvalidOperationException">Thrown if the specified file is not a valid PE file.</exception>
     public static string GetArchitecture(IFileSystem fileSystem, string filePath)
@@ -82,7 +86,7 @@ internal static class PeArchitectureReader
         // Check if we have an optional header
         if (sizeOfOptionalHeader == 0)
         {
-            return GetNativeArchName(machine);
+            return GetNativeArchName(machine, hasHybridMetadata: false);
         }
 
         // Read Optional Header magic to determine PE32 vs PE32+
@@ -91,72 +95,103 @@ internal static class PeArchitectureReader
 
         bool isPE32Plus = magic == PE32PLUS_MAGIC;
 
+        // Section headers start right after the optional header
+        long sectionStart = optionalHeaderStart + sizeOfOptionalHeader;
+
         // Navigate to Data Directory
         // PE32: OptionalHeader is 96 bytes before DataDirectory
         // PE32+: OptionalHeader is 112 bytes before DataDirectory
         int dataDirectoryOffset = isPE32Plus ? 112 : 96;
-        stream.Seek(optionalHeaderStart + dataDirectoryOffset, SeekOrigin.Begin);
+        long dataDirectoryStart = optionalHeaderStart + dataDirectoryOffset;
+
+        // Read Load Config entry (index 10)
+        stream.Seek(dataDirectoryStart + (LOAD_CONFIG_DIRECTORY_INDEX * 8), SeekOrigin.Begin);
+        uint loadConfigRva = reader.ReadUInt32();
 
         // Read CLR Runtime Header entry (index 14)
-        stream.Seek(CLR_HEADER_DIRECTORY_INDEX * 8, SeekOrigin.Current);
+        stream.Seek(dataDirectoryStart + (CLR_HEADER_DIRECTORY_INDEX * 8), SeekOrigin.Begin);
         uint clrRva = reader.ReadUInt32();
         uint clrSize = reader.ReadUInt32();
 
         // If no CLR header, it's a native binary
         if (clrRva == 0 || clrSize == 0)
         {
-            return GetNativeArchName(machine);
+            // ARM64EC and ARM64X images keep the x64 or ARM64 machine type, so only these two can be hybrid
+            bool hasHybridMetadata = isPE32Plus
+                && machine is IMAGE_FILE_MACHINE_AMD64 or IMAGE_FILE_MACHINE_ARM64
+                && HasChpeMetadata(reader, stream, sectionStart, numberOfSections, loadConfigRva);
+
+            return GetNativeArchName(machine, hasHybridMetadata);
         }
 
         // It's a .NET assembly - read CorFlags
-        uint corFlags = ReadCorFlags(reader, stream, peOffset, numberOfSections, clrRva);
+        uint corFlags = ReadCorFlags(reader, stream, sectionStart, numberOfSections, clrRva);
 
         return GetManagedArchName(machine, corFlags);
     }
 
-    private static uint ReadCorFlags(BinaryReader reader, FileSystemStream stream, int peOffset, ushort numberOfSections, uint clrRva)
+    private static uint ReadCorFlags(BinaryReader reader, FileSystemStream stream, long sectionStart, ushort numberOfSections, uint clrRva)
     {
-        // Need to convert RVA to file offset using section headers
-        long sectionHeadersStart = peOffset + 24 + reader.BaseStream.Position - reader.BaseStream.Position;
+        if (!TryGetFileOffset(reader, stream, sectionStart, numberOfSections, clrRva, out long fileOffset))
+        {
+            return 0; // Couldn't read CorFlags, treat as native
+        }
 
-        // Go back to read optional header size to find section headers
-        stream.Seek(peOffset + 4 + 16, SeekOrigin.Begin); // PE sig + COFF header up to SizeOfOptionalHeader
-        ushort optHeaderSize = reader.ReadUInt16();
+        // CLR header structure: first 4 bytes are size, then major/minor version (4 bytes)
+        // then MetaData RVA/Size (8 bytes), then Flags (4 bytes) at offset 16
+        stream.Seek(fileOffset + 16, SeekOrigin.Begin);
+        return reader.ReadUInt32();
+    }
 
-        // Section headers start after optional header
-        long sectionStart = peOffset + 24 + optHeaderSize; // 24 = PE sig (4) + COFF header (20)
-        stream.Seek(sectionStart, SeekOrigin.Begin);
+    private static bool HasChpeMetadata(BinaryReader reader, FileSystemStream stream, long sectionStart, ushort numberOfSections, uint loadConfigRva)
+    {
+        if (loadConfigRva == 0
+            || !TryGetFileOffset(reader, stream, sectionStart, numberOfSections, loadConfigRva, out long fileOffset)
+            || fileOffset + CHPE_METADATA_POINTER_OFFSET64 + 8 > stream.Length)
+        {
+            return false;
+        }
 
-        // Find the section containing the CLR header RVA
+        // The first field is the structure's size. Older linkers write a structure that ends before CHPEMetadataPointer.
+        stream.Seek(fileOffset, SeekOrigin.Begin);
+        uint loadConfigSize = reader.ReadUInt32();
+        if (loadConfigSize < CHPE_METADATA_POINTER_OFFSET64 + 8)
+        {
+            return false;
+        }
+
+        stream.Seek(fileOffset + CHPE_METADATA_POINTER_OFFSET64, SeekOrigin.Begin);
+        return reader.ReadUInt64() != 0;
+    }
+
+    private static bool TryGetFileOffset(BinaryReader reader, FileSystemStream stream, long sectionStart, ushort numberOfSections, uint rva, out long fileOffset)
+    {
+        // Find the section containing the RVA
         for (int i = 0; i < numberOfSections; i++)
         {
             stream.Seek(sectionStart + (i * 40), SeekOrigin.Begin);
             stream.Seek(8, SeekOrigin.Current); // Skip Name
             uint virtualSize = reader.ReadUInt32();
             uint virtualAddress = reader.ReadUInt32();
-            uint sizeOfRawData = reader.ReadUInt32();
+            stream.Seek(4, SeekOrigin.Current); // Skip SizeOfRawData
             uint pointerToRawData = reader.ReadUInt32();
 
-            if (clrRva >= virtualAddress && clrRva < virtualAddress + virtualSize)
+            if (rva >= virtualAddress && rva < virtualAddress + virtualSize)
             {
-                // Found the section - calculate file offset
-                uint fileOffset = pointerToRawData + (clrRva - virtualAddress);
-
-                // CLR header structure: first 4 bytes are size, then major/minor version (4 bytes)
-                // then MetaData RVA/Size (8 bytes), then Flags (4 bytes) at offset 16
-                stream.Seek(fileOffset + 16, SeekOrigin.Begin);
-                return reader.ReadUInt32();
+                fileOffset = pointerToRawData + (rva - virtualAddress);
+                return true;
             }
         }
 
-        return 0; // Couldn't read CorFlags, treat as native
+        fileOffset = 0;
+        return false;
     }
 
-    private static string GetNativeArchName(ushort machine) => machine switch
+    private static string GetNativeArchName(ushort machine, bool hasHybridMetadata) => machine switch
     {
         IMAGE_FILE_MACHINE_I386 => "x86",
-        IMAGE_FILE_MACHINE_AMD64 => "x64",
-        IMAGE_FILE_MACHINE_ARM64 => "ARM64",
+        IMAGE_FILE_MACHINE_AMD64 => hasHybridMetadata ? "ARM64EC" : "x64",
+        IMAGE_FILE_MACHINE_ARM64 => hasHybridMetadata ? "ARM64X" : "ARM64",
         IMAGE_FILE_MACHINE_ARMNT => "ARM",
         _ => $"Unknown (0x{machine:X4})"
     };

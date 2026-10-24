@@ -29,7 +29,7 @@ dotnet run --project src\WhatArch -- <path-to-binary>
 
 ### Core Components
 
-- **PeArchitectureReader** (`src/WhatArch/PeArchitectureReader.cs`) - Core PE parsing logic that reads DOS/PE headers, COFF machine type, and CLR header/CorFlags for .NET assemblies. Determines architecture (x86, x64, ARM, ARM64, AnyCPU variants).
+- **PeArchitectureReader** (`src/WhatArch/PeArchitectureReader.cs`) - Core PE parsing logic that reads DOS/PE headers, COFF machine type, CLR header/CorFlags for .NET assemblies, and the load config's CHPE metadata pointer for ARM64EC/ARM64X. Determines architecture (x86, x64, ARM, ARM64, ARM64EC, ARM64X, AnyCPU variants).
 
 - **WhatArchRunner** (`src/WhatArch/WhatArchRunner.cs`) - Orchestrates the analysis: resolves file paths, calls `PeArchitectureReader`, handles Scoop shims, and returns structured results.
 

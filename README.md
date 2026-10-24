@@ -12,6 +12,7 @@ A [.NET tool](https://docs.microsoft.com/dotnet/core/tools/global-tools) for Win
 ## Features
 
 - Detects native binary architectures: **x86**, **x64**, **ARM64**, **ARM**
+- Identifies Windows on Arm hybrid binaries: **ARM64EC** and **ARM64X**
 - Identifies .NET assembly configurations: **AnyCPU (.NET)**, **AnyCPU (.NET - 32-bit preferred)**, **x86 (.NET)**, **x64 (.NET)**, **ARM64 (.NET)**
 - Simple, script-friendly output
 - No external dependencies - parses PE headers directly
@@ -41,20 +42,26 @@ whatarch <path-to-binary>
 
 ### Examples
 
+Results below are from a Windows on Arm machine.
+
 ```shell
 # Native binaries (by name - searches PATH, adds .exe automatically on Windows)
 whatarch notepad
 > ARM64
 
 whatarch cmd
-> x64
+> ARM64X
 
 # Native binaries (by path)
 whatarch C:\Windows\System32\kernel32.dll
-> x64
+> ARM64X
 
 whatarch C:\Windows\SysWOW64\kernel32.dll
 > x86
+
+# ARM64EC: contains native Arm code that follows x64 conventions
+whatarch "C:\Program Files\Microsoft Office\root\Office16\WINWORD.EXE"
+> ARM64EC
 
 # .NET assemblies
 whatarch MyApp.dll
@@ -73,4 +80,4 @@ whatarch MyApp.x64.dll
 
 ## How It Works
 
-WhatArch reads the PE (Portable Executable) file headers to determine the target architecture. For .NET assemblies, it also examines the CLR header and CorFlags to distinguish between AnyCPU and platform-specific builds.
+WhatArch reads the PE (Portable Executable) file headers to determine the target architecture. For .NET assemblies, it also examines the CLR header and CorFlags to distinguish between AnyCPU and platform-specific builds. For native x64 and ARM64 binaries, it checks the load configuration for the hybrid metadata that marks ARM64EC and ARM64X. See [docs/architecture.md](docs/architecture.md) for details.

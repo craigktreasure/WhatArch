@@ -7,7 +7,7 @@ public class WhatArchRunnerTests
 {
     private static readonly string TestBinariesPath = TestHelpers.GetTestBinariesPath();
 
-    private static readonly string[] ValidNativeArchitectures = ["x86", "x64", "ARM64", "ARM"];
+    private static readonly string[] ValidNativeArchitectures = ["x86", "x64", "ARM64", "ARM64EC", "ARM64X", "ARM"];
 
     private static readonly FileSystem FileSystem = new();
 

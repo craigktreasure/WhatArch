@@ -141,6 +141,117 @@ internal static class TestPeBuilder
     }
 
     /// <summary>
+    /// Creates a minimal PE32+ file with a load configuration directory, and optionally a CLR header.
+    /// </summary>
+    /// <param name="machineType">The COFF machine type.</param>
+    /// <param name="chpeMetadataPointer">The CHPEMetadataPointer value. Non-zero marks ARM64EC and ARM64X images.</param>
+    /// <param name="loadConfigSize">The load configuration's Size field. The pointer is always written, whatever the size says.</param>
+    /// <param name="loadConfigInSection">Whether the load configuration RVA falls inside the section.</param>
+    /// <param name="corFlags">When set, adds a CLR header with these CorFlags, making the file a .NET assembly.</param>
+    public static byte[] CreatePeWithLoadConfig(
+        ushort machineType,
+        ulong chpeMetadataPointer,
+        uint loadConfigSize = 320,
+        bool loadConfigInSection = true,
+        uint? corFlags = null)
+    {
+        using MemoryStream ms = new();
+        using BinaryWriter writer = new(ms);
+
+        int peHeaderOffset = 64;
+        int optionalHeaderBase = 112; // PE32+ standard fields before data directories
+        int dataDirectoriesSize = 16 * 8; // 16 entries, 8 bytes each
+        int optionalHeaderSize = optionalHeaderBase + dataDirectoriesSize;
+        int sectionRva = 0x2000;
+        int sectionFileOffset = 0x200;
+        int loadConfigRva = loadConfigInSection ? sectionRva : 0x9000;
+        int clrHeaderOffsetInSection = 0x180; // after the load config
+        const int chpeMetadataPointerOffset = 200; // IMAGE_LOAD_CONFIG_DIRECTORY64.CHPEMetadataPointer
+
+        // DOS Header
+        writer.Write((ushort)0x5A4D); // MZ signature
+        writer.Write(new byte[58]);    // DOS header padding
+        writer.Write(peHeaderOffset);  // PE header offset at 0x3C
+
+        // PE Signature
+        writer.Write((uint)0x00004550); // "PE\0\0"
+
+        // COFF File Header (20 bytes)
+        writer.Write(machineType);      // Machine
+        writer.Write((ushort)1);        // NumberOfSections
+        writer.Write((uint)0);          // TimeDateStamp
+        writer.Write((uint)0);          // PointerToSymbolTable
+        writer.Write((uint)0);          // NumberOfSymbols
+        writer.Write((ushort)optionalHeaderSize); // SizeOfOptionalHeader
+        writer.Write((ushort)0);        // Characteristics
+
+        // Optional Header
+        writer.Write((ushort)0x20b);    // Magic (PE32+)
+        writer.Write(new byte[optionalHeaderBase - 2]);
+
+        // Data Directories (16 entries, 8 bytes each)
+        for (int i = 0; i < 10; i++)
+        {
+            writer.Write((uint)0); // RVA
+            writer.Write((uint)0); // Size
+        }
+        // Entry 10: Load Config
+        writer.Write((uint)loadConfigRva);
+        writer.Write(loadConfigSize);
+        // Entries 11-13: unused
+        writer.Write(new byte[3 * 8]);
+        // Entry 14: CLR Runtime Header (only for .NET assemblies)
+        writer.Write(corFlags.HasValue ? (uint)(sectionRva + clrHeaderOffsetInSection) : 0u);
+        writer.Write(corFlags.HasValue ? 72u : 0u);
+        // Entry 15: Reserved
+        writer.Write(new byte[8]);
+
+        // Section Header (.rdata) - 40 bytes
+        writer.Write(new byte[8] { (byte)'.', (byte)'r', (byte)'d', (byte)'a', (byte)'t', (byte)'a', 0, 0 }); // Name
+        writer.Write((uint)0x1000);            // VirtualSize
+        writer.Write((uint)sectionRva);        // VirtualAddress
+        writer.Write((uint)0x200);             // SizeOfRawData
+        writer.Write((uint)sectionFileOffset); // PointerToRawData
+        writer.Write(new byte[16]);            // Relocations, line numbers, characteristics
+
+        // Pad to section data
+        while (ms.Position < sectionFileOffset)
+        {
+            writer.Write((byte)0);
+        }
+
+        // Load Config: Size, zeros up to CHPEMetadataPointer, then the pointer.
+        // The pointer is written even when Size says the structure ends before it, so tests prove the reader checks Size.
+        writer.Write(loadConfigSize);
+        writer.Write(new byte[chpeMetadataPointerOffset - 4]);
+        writer.Write(chpeMetadataPointer);
+
+        if (corFlags.HasValue)
+        {
+            while (ms.Position < sectionFileOffset + clrHeaderOffsetInSection)
+            {
+                writer.Write((byte)0);
+            }
+
+            // CLR Header (72 bytes): cb, runtime version, metadata RVA/size, then Flags at offset 16
+            writer.Write(72u);
+            writer.Write((ushort)2);
+            writer.Write((ushort)5);
+            writer.Write(0u);
+            writer.Write(0u);
+            writer.Write(corFlags.Value);
+            writer.Write(new byte[72 - 20]);
+        }
+
+        while (ms.Position < sectionFileOffset + 0x200)
+        {
+            writer.Write((byte)0);
+        }
+
+        return ms.ToArray();
+    }
+
+    /// <summary>
     /// Creates a file with invalid MZ signature.
     /// </summary>
     public static byte[] CreateInvalidMzSignature()

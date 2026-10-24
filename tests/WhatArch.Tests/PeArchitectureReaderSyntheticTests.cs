@@ -76,6 +76,98 @@ public sealed class PeArchitectureReaderSyntheticTests
 
     #endregion
 
+    #region Hybrid (ARM64EC / ARM64X) Tests with Synthetic PEs
+
+    [Theory]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 0x140073CA8UL, "ARM64EC")]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_ARM64, 0x18011E610UL, "ARM64X")]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 0UL, "x64")]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_ARM64, 0UL, "ARM64")]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_I386, 0x10001000UL, "x86")]
+    public void GetArchitecture_LoadConfigChpeMetadata_ReturnsExpectedArchitecture(ushort machineType, ulong chpeMetadataPointer, string expectedArch)
+    {
+        // Arrange
+        byte[] peData = TestPeBuilder.CreatePeWithLoadConfig(machineType, chpeMetadataPointer);
+        string filePath = SaveTempFile(_fileSystem, peData, $"loadconfig_{expectedArch}.exe");
+
+        // Act
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
+
+        // Assert
+        Assert.Equal(expectedArch, actualArch);
+    }
+
+    [Theory]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 148u, "x64")]     // an older load config that ends well before the pointer
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 207u, "x64")]     // one byte short of covering the pointer at offset 200
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 208u, "ARM64EC")] // exactly covers the pointer
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_ARM64, 148u, "ARM64")]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_ARM64, 207u, "ARM64")]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_ARM64, 208u, "ARM64X")]
+    public void GetArchitecture_LoadConfigSize_OnlyReadsPointerWhenSizeCoversIt(ushort machineType, uint loadConfigSize, string expectedArch)
+    {
+        // Arrange - the builder writes a non-zero pointer regardless of Size
+        byte[] peData = TestPeBuilder.CreatePeWithLoadConfig(machineType, 0x140073CA8UL, loadConfigSize: loadConfigSize);
+        string filePath = SaveTempFile(_fileSystem, peData, $"loadconfig_size{loadConfigSize}.exe");
+
+        // Act
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
+
+        // Assert
+        Assert.Equal(expectedArch, actualArch);
+    }
+
+    [Theory]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, "x64")]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_ARM64, "ARM64")]
+    public void GetArchitecture_LoadConfigRvaOutsideSections_ReturnsMachineArchitecture(ushort machineType, string expectedArch)
+    {
+        // Arrange
+        byte[] peData = TestPeBuilder.CreatePeWithLoadConfig(machineType, 0x140073CA8UL, loadConfigInSection: false);
+        string filePath = SaveTempFile(_fileSystem, peData, "loadconfig_outside.exe");
+
+        // Act
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
+
+        // Assert
+        Assert.Equal(expectedArch, actualArch);
+    }
+
+    [Theory]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, "x64")]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_ARM64, "ARM64")]
+    public void GetArchitecture_LoadConfigTruncated_ReturnsMachineArchitecture(ushort machineType, string expectedArch)
+    {
+        // Arrange - the file ends partway through the load config, before CHPEMetadataPointer
+        byte[] peData = TestPeBuilder.CreatePeWithLoadConfig(machineType, 0x140073CA8UL)[..(0x200 + 100)];
+        string filePath = SaveTempFile(_fileSystem, peData, "loadconfig_truncated.exe");
+
+        // Act
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
+
+        // Assert
+        Assert.Equal(expectedArch, actualArch);
+    }
+
+    [Theory]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, "x64 (.NET)")]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_ARM64, "ARM64 (.NET)")]
+    public void GetArchitecture_ManagedPeWithChpeMetadata_UsesCorFlags(ushort machineType, string expectedArch)
+    {
+        // Arrange - a CLR header takes precedence over CHPE metadata in the load config
+        const uint ILONLY = 0x00000001;
+        byte[] peData = TestPeBuilder.CreatePeWithLoadConfig(machineType, 0x140073CA8UL, corFlags: ILONLY);
+        string filePath = SaveTempFile(_fileSystem, peData, "managed_with_chpe.dll");
+
+        // Act
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
+
+        // Assert
+        Assert.Equal(expectedArch, actualArch);
+    }
+
+    #endregion
+
     #region Managed (.NET) Binary Tests with Synthetic PEs
 
     [Fact]
