@@ -59,7 +59,12 @@ internal static class TestPeBuilder
     /// <summary>
     /// Creates a minimal .NET assembly PE file.
     /// </summary>
-    public static byte[] CreateMinimalManagedPe(ushort machineType, uint corFlags, bool isPe32Plus = false)
+    /// <param name="machineType">The COFF machine type.</param>
+    /// <param name="corFlags">The CorFlags written to the CLR header.</param>
+    /// <param name="isPe32Plus">Whether to write a PE32+ optional header instead of PE32.</param>
+    /// <param name="clrHeaderDirectoryRva">The CLR header RVA written to the data directory. Defaults to the section's start,
+    /// where the CLR header is written.</param>
+    public static byte[] CreateMinimalManagedPe(ushort machineType, uint corFlags, bool isPe32Plus = false, uint clrHeaderDirectoryRva = 0x2000)
     {
         using MemoryStream ms = new();
         using BinaryWriter writer = new(ms);
@@ -69,7 +74,7 @@ internal static class TestPeBuilder
         int dataDirectoriesSize = 16 * 8; // 16 entries, 8 bytes each
         int optionalHeaderSize = optionalHeaderBase + dataDirectoriesSize;
         int sectionHeaderStart = peHeaderOffset + 24 + optionalHeaderSize; // PE sig (4) + COFF (20) + optional header
-        int clrHeaderRva = 0x2000; // Virtual address of CLR header
+        int clrHeaderRva = 0x2000; // Virtual address of CLR header (the section's start)
         int sectionFileOffset = 0x200; // File offset where section data starts (typical alignment)
         int clrHeaderFileOffset = sectionFileOffset; // CLR header is at the start of section data
 
@@ -104,7 +109,7 @@ internal static class TestPeBuilder
             writer.Write((uint)0); // Size
         }
         // Entry 14: CLR Runtime Header
-        writer.Write((uint)clrHeaderRva);  // RVA
+        writer.Write(clrHeaderDirectoryRva); // RVA
         writer.Write((uint)72);            // Size (standard CLR header size)
         // Entry 15: Reserved
         writer.Write((uint)0);
@@ -148,20 +153,23 @@ internal static class TestPeBuilder
     /// <param name="machineType">The COFF machine type.</param>
     /// <param name="chpeMetadataPointer">The CHPEMetadataPointer value. Non-zero marks ARM64EC and ARM64X images.</param>
     /// <param name="loadConfigSize">The load configuration's Size field. The pointer is always written, whatever the size says.</param>
-    /// <param name="loadConfigInSection">Whether the load configuration RVA falls inside the section.</param>
+    /// <param name="loadConfigRva">The load configuration RVA written to the data directory. Defaults to the section's start,
+    /// where the load configuration is written.</param>
     /// <param name="corFlags">When set, adds a CLR header with these CorFlags, making the file a .NET assembly.</param>
     /// <param name="numberOfRvaAndSizes">The optional header's NumberOfRvaAndSizes. All 16 entries are written regardless.</param>
     /// <param name="sectionRawSize">The section's SizeOfRawData. The file always contains 0x200 bytes of section data.</param>
-    /// <param name="sectionRva">The section's VirtualAddress. The section's VirtualSize is 0x1000.</param>
+    /// <param name="sectionRva">The section's VirtualAddress.</param>
+    /// <param name="sectionVirtualSize">The section's VirtualSize.</param>
     public static byte[] CreatePeWithLoadConfig(
         ushort machineType,
         ulong chpeMetadataPointer,
         uint loadConfigSize = 320,
-        bool loadConfigInSection = true,
+        uint? loadConfigRva = null,
         uint? corFlags = null,
         uint numberOfRvaAndSizes = 16,
         uint sectionRawSize = 0x200,
-        uint sectionRva = 0x2000)
+        uint sectionRva = 0x2000,
+        uint sectionVirtualSize = 0x1000)
     {
         using MemoryStream ms = new();
         using BinaryWriter writer = new(ms);
@@ -171,7 +179,7 @@ internal static class TestPeBuilder
         int dataDirectoriesSize = 16 * 8; // 16 entries, 8 bytes each
         int optionalHeaderSize = optionalHeaderBase + dataDirectoriesSize;
         int sectionFileOffset = 0x200;
-        uint loadConfigRva = loadConfigInSection ? sectionRva : 0x9000;
+        uint loadConfigDirectoryRva = loadConfigRva ?? sectionRva;
         uint clrHeaderOffsetInSection = 0x180; // after the load config
         const int chpeMetadataPointerOffset = 200; // IMAGE_LOAD_CONFIG_DIRECTORY64.CHPEMetadataPointer
 
@@ -204,7 +212,7 @@ internal static class TestPeBuilder
             writer.Write((uint)0); // Size
         }
         // Entry 10: Load Config
-        writer.Write(loadConfigRva);
+        writer.Write(loadConfigDirectoryRva);
         writer.Write(loadConfigSize);
         // Entries 11-13: unused
         writer.Write(new byte[3 * 8]);
@@ -216,7 +224,7 @@ internal static class TestPeBuilder
 
         // Section Header (.rdata) - 40 bytes
         writer.Write(new byte[8] { (byte)'.', (byte)'r', (byte)'d', (byte)'a', (byte)'t', (byte)'a', 0, 0 }); // Name
-        writer.Write((uint)0x1000);            // VirtualSize
+        writer.Write(sectionVirtualSize);      // VirtualSize
         writer.Write(sectionRva);              // VirtualAddress
         writer.Write(sectionRawSize);          // SizeOfRawData
         writer.Write((uint)sectionFileOffset); // PointerToRawData

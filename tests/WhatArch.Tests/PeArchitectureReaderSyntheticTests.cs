@@ -118,13 +118,15 @@ public sealed class PeArchitectureReaderSyntheticTests
     }
 
     [Theory]
-    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, "x64")]
-    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_ARM64, "ARM64")]
-    public void GetArchitecture_LoadConfigRvaOutsideSections_ReturnsMachineArchitecture(ushort machineType, string expectedArch)
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 0x1000u, "x64")] // before the section (0x2000-0x2FFF)
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 0x9000u, "x64")] // after it
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_ARM64, 0x1000u, "ARM64")]
+    [InlineData(TestPeBuilder.IMAGE_FILE_MACHINE_ARM64, 0x9000u, "ARM64")]
+    public void GetArchitecture_LoadConfigRvaOutsideSections_ReturnsMachineArchitecture(ushort machineType, uint loadConfigRva, string expectedArch)
     {
         // Arrange
-        byte[] peData = TestPeBuilder.CreatePeWithLoadConfig(machineType, 0x140073CA8UL, loadConfigInSection: false);
-        string filePath = SaveTempFile(_fileSystem, peData, "loadconfig_outside.exe");
+        byte[] peData = TestPeBuilder.CreatePeWithLoadConfig(machineType, 0x140073CA8UL, loadConfigRva: loadConfigRva);
+        string filePath = SaveTempFile(_fileSystem, peData, $"loadconfig_outside{loadConfigRva:X}.exe");
 
         // Act
         string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
@@ -214,6 +216,50 @@ public sealed class PeArchitectureReaderSyntheticTests
 
         // Assert
         Assert.Equal(expectedArch, actualArch);
+    }
+
+    [Fact]
+    public void GetArchitecture_LoadConfigPastSectionRawData_ReturnsX64()
+    {
+        // Arrange - the RVA is inside the section's virtual range (0x1000 bytes) but past its 0x200 bytes of raw data
+        byte[] peData = TestPeBuilder.CreatePeWithLoadConfig(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 0x140073CA8UL, loadConfigRva: 0x2300);
+        string filePath = SaveTempFile(_fileSystem, peData, "loadconfig_past_raw.exe");
+
+        // Act
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
+
+        // Assert
+        Assert.Equal("x64", actualArch);
+    }
+
+    [Theory]
+    [InlineData(0x200u, "ARM64EC")] // VirtualSize 0 falls back to SizeOfRawData, which covers the load config
+    [InlineData(0x80u, "x64")]      // ...and the pointer is past that raw data
+    public void GetArchitecture_SectionWithZeroVirtualSize_UsesRawSize(uint sectionRawSize, string expectedArch)
+    {
+        // Arrange
+        byte[] peData = TestPeBuilder.CreatePeWithLoadConfig(TestPeBuilder.IMAGE_FILE_MACHINE_AMD64, 0x140073CA8UL, sectionRawSize: sectionRawSize, sectionVirtualSize: 0);
+        string filePath = SaveTempFile(_fileSystem, peData, $"zero_vsize_raw{sectionRawSize:X}.exe");
+
+        // Act
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
+
+        // Assert
+        Assert.Equal(expectedArch, actualArch);
+    }
+
+    [Fact]
+    public void GetArchitecture_ManagedClrHeaderOutsideSections_UsesEmptyCorFlags()
+    {
+        // Arrange - the CLR header can't be located, so CorFlags reads as 0 (not IL-only)
+        byte[] peData = TestPeBuilder.CreateMinimalManagedPe(TestPeBuilder.IMAGE_FILE_MACHINE_I386, 0x00000001, clrHeaderDirectoryRva: 0x9000);
+        string filePath = SaveTempFile(_fileSystem, peData, "managed_clr_outside.dll");
+
+        // Act
+        string actualArch = PeArchitectureReader.GetArchitecture(_fileSystem, filePath);
+
+        // Assert
+        Assert.Equal("x86 (.NET)", actualArch);
     }
 
     [Fact]
