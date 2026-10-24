@@ -123,6 +123,39 @@ Each section header (40 bytes) contains:
 - `PointerToRawData` - Where the section is in the file
 - `SizeOfRawData` - Size in the file
 
+## ARM64EC and ARM64X
+
+Windows on Arm adds two hybrid formats that the Machine field alone can't identify:
+
+- **ARM64EC** ("Emulation Compatible") is an ABI for code that runs natively on Arm but follows x64 conventions, so it can share a process with emulated x64 code. A binary reported as ARM64EC contains ARM64EC code, but some of it may still be x64 code that runs under emulation. Both EXEs and DLLs can contain ARM64EC code. Microsoft Office on Arm is an example.
+- **ARM64X** binaries contain both classic ARM64 code and ARM64EC code, so they can load into ARM64 and x64 processes alike. Most are DLLs, such as the system DLLs in `System32`, but EXEs can be ARM64X too (`cmd.exe` is one).
+
+The PE spec lists machine types for both (`0xA641` and `0xA64E`), but linked EXEs and DLLs never use them. MSVC uses `0xA641` only in ARM64EC object files. A linked image keeps an ordinary Machine value:
+
+| Machine | CHPE metadata | Result |
+|---------|---------------|--------|
+| 0x8664 (x64) | None | x64 |
+| 0x8664 (x64) | Present | ARM64EC |
+| 0xAA64 (ARM64) | None | ARM64 |
+| 0xAA64 (ARM64) | Present | ARM64X |
+
+### Detecting CHPE Metadata
+
+Hybrid images carry metadata that the loader uses to switch between code, and the **Load Configuration Directory** points to it:
+
+1. Read Data Directory entry #10 (the Load Configuration Directory) and convert its RVA to a file offset.
+2. Read the structure's first field, `Size`. Older linkers write a shorter structure, so only continue if it's large enough to contain `CHPEMetadataPointer`.
+3. Read `CHPEMetadataPointer` at offset 200 in `IMAGE_LOAD_CONFIG_DIRECTORY64`. A non-zero value marks a hybrid image.
+
+WhatArch only checks PE32+ images with an x64 or ARM64 Machine value. The binary is reported by its Machine value alone if the directory:
+
+- isn't declared (its index is beyond `NumberOfRvaAndSizes`)
+- is too small to contain `CHPEMetadataPointer`
+- is outside every section, or extends past the section's data in the file (its `SizeOfRawData`)
+- is cut off by the end of the file
+
+Windows 10 on Arm also shipped hybrid 32-bit x86 binaries, marked `(CHPE)` by `dumpbin` (for example, `C:\Windows\SyChpe32\kernel32.dll`). They keep the x86 Machine value and use the same field in `IMAGE_LOAD_CONFIG_DIRECTORY32`, but WhatArch doesn't check it, so they're reported as x86.
+
 ## Code Structure
 
 ### PeArchitectureReader.cs
@@ -136,13 +169,14 @@ GetArchitecture(filePath)
 ├── Verify "PE\0\0" signature
 ├── Read Machine type from COFF header
 ├── Read Optional Header magic (PE32 vs PE32+)
-├── Navigate to Data Directory entry 14
+├── Read Data Directory entries 10 (Load Config) and 14 (CLR header)
 ├── If CLR header exists:
 │   ├── Convert RVA to file offset
 │   ├── Read CorFlags
 │   └── Return managed architecture name
 └── Else:
-    └── Return native architecture name
+    ├── If PE32+ x64 or ARM64, check the Load Config for CHPE metadata
+    └── Return native architecture name (ARM64EC/ARM64X when hybrid)
 ```
 
 ### Program.cs
@@ -205,6 +239,9 @@ If there's no `.shim` file or it can't be parsed, WhatArch reports the architect
 ## References
 
 - [PE Format - Microsoft Docs](https://docs.microsoft.com/en-us/windows/win32/debug/pe-format)
+- [Arm64EC - Microsoft Docs](https://learn.microsoft.com/windows/arm/arm64ec)
+- [Arm64X PE files - Microsoft Docs](https://learn.microsoft.com/windows/arm/arm64x-pe)
+- [IMAGE_LOAD_CONFIG_DIRECTORY64 - Microsoft Docs](https://learn.microsoft.com/windows/win32/api/winnt/ns-winnt-image_load_config_directory64)
 - [ECMA-335 (CLI Specification)](https://www.ecma-international.org/publications-and-standards/standards/ecma-335/)
 - [CorFlags.exe Tool](https://docs.microsoft.com/en-us/dotnet/framework/tools/corflags-exe-corflags-conversion-tool)
 - [Scoop Wiki - Shims](https://github.com/ScoopInstaller/Scoop/wiki/Shims)
