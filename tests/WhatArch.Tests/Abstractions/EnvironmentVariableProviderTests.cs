@@ -1,4 +1,4 @@
-﻿namespace WhatArch.Tests.Abstractions;
+namespace WhatArch.Tests.Abstractions;
 
 using WhatArch.Abstractions;
 

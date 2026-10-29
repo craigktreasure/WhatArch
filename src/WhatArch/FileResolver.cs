@@ -1,4 +1,4 @@
-﻿namespace WhatArch;
+namespace WhatArch;
 
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Abstractions;
