@@ -1,4 +1,4 @@
-﻿namespace WhatArch.Abstractions;
+namespace WhatArch.Abstractions;
 
 using System;
 

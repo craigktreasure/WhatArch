@@ -1,4 +1,4 @@
-﻿using System.CommandLine;
+using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Abstractions;
 using WhatArch;

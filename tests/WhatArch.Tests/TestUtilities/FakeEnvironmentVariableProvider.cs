@@ -1,4 +1,4 @@
-﻿namespace WhatArch.Tests.TestUtilities;
+namespace WhatArch.Tests.TestUtilities;
 
 using System;
 using WhatArch.Abstractions;
