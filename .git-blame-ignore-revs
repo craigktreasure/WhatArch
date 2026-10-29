@@ -1,0 +1,2 @@
+# Drop UTF-8 BOM requirement and strip existing BOMs (#65)
+b4c3efdbc7bd36372b9a088cbeb848ca543ff361
