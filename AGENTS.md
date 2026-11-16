@@ -21,6 +21,12 @@ dotnet test --filter "FullyQualifiedName~TestMethodName"
 # Run tests with code coverage
 dotnet test --collect:"XPlat Code Coverage"
 
+# Pack the tool (Native AOT per RID; requires MSVC build tools for both architectures)
+dotnet pack src\WhatArch -c Release                                # pointer package
+dotnet pack src\WhatArch -c Release -r win-x64                     # Native AOT
+dotnet pack src\WhatArch -c Release -r win-arm64                   # Native AOT
+dotnet pack src\WhatArch -c Release -r any -p:PublishAot=false     # framework-dependent fallback
+
 # Run the tool locally (after build)
 dotnet run --project src\WhatArch -- <path-to-binary>
 ```

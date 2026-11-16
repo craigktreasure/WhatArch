@@ -127,10 +127,10 @@ jobs:
           echo "📦 Packages to be released:"
           ls -la __artifacts/package/release/
 
-          # Extract version from package filename
-          PACKAGE_FILE=$(ls __artifacts/package/release/WhatArch.*.nupkg | head -1)
+          # Extract version from the pointer package (WhatArch.<version>.nupkg, not WhatArch.<rid>.<version>.nupkg)
+          PACKAGE_FILE=$(ls __artifacts/package/release/WhatArch.[0-9]*.nupkg | head -1)
           if [ -n "$PACKAGE_FILE" ]; then
-            PACKAGE_VERSION=$(basename "$PACKAGE_FILE" .nupkg | sed 's/WhatArch.//')
+            PACKAGE_VERSION=$(basename "$PACKAGE_FILE" .nupkg | sed 's/^WhatArch\.//')
             echo "📋 Package version: $PACKAGE_VERSION"
             echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
           else
@@ -148,7 +148,12 @@ jobs:
       - name: Push to NuGet.org
         run: |
           echo "🚀 Pushing $PACKAGE_VERSION to NuGet.org..."
-          dotnet nuget push __artifacts/package/release/WhatArch.*.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+          # RID-specific packages must be published before the pointer package that references them.
+          # https://learn.microsoft.com/dotnet/core/tools/rid-specific-tools#publish-your-tool
+          for RID in win-x64 win-arm64 any; do
+            dotnet nuget push "__artifacts/package/release/WhatArch.$RID.$PACKAGE_VERSION.nupkg" --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+          done
+          dotnet nuget push "__artifacts/package/release/WhatArch.$PACKAGE_VERSION.nupkg" --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
           echo "✅ Successfully released $PACKAGE_VERSION to NuGet.org"
 
       - name: Create release summary
