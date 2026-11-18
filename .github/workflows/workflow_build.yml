@@ -58,6 +58,19 @@ jobs:
       - name: Test
         run: dotnet test --configuration Release --no-build --verbosity normal /p:CollectCoverage=true
 
+      # https://learn.microsoft.com/dotnet/core/tools/rid-specific-tools
+      - name: Pack pointer package
+        run: dotnet pack src/WhatArch --configuration Release
+
+      - name: Pack win-x64 Native AOT package
+        run: dotnet pack src/WhatArch --configuration Release --runtime win-x64
+
+      - name: Pack win-arm64 Native AOT package
+        run: dotnet pack src/WhatArch --configuration Release --runtime win-arm64
+
+      - name: Pack framework-dependent fallback package
+        run: dotnet pack src/WhatArch --configuration Release --runtime any -p:PublishAot=false
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
