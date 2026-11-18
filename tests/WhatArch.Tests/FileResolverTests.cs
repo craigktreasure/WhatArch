@@ -264,6 +264,54 @@ public class FileResolverTests
         Assert.EndsWith(".exe", resolvedPath, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void TryResolve_BareFilenameWithOnlyCmdInPath_FindsCmd()
+    {
+        // Arrange
+        _fileSystem.AddFile(@"C:\tools\mytool.cmd", new MockFileData("@echo off"));
+        AddToPath(@"C:\tools");
+
+        // Act
+        bool result = FileResolver.TryResolve(_fileSystem, "mytool", _variableProvider, out string? resolvedPath);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(@"C:\tools\mytool.cmd", resolvedPath);
+    }
+
+    [Fact]
+    public void TryResolve_ExeAndCmdInSameDirectory_PrefersExe()
+    {
+        // Arrange
+        _fileSystem.AddFile(@"C:\tools\mytool.cmd", new MockFileData("@echo off"));
+        _fileSystem.AddFile(@"C:\tools\mytool.exe", new MockFileData("Dummy content"));
+        AddToPath(@"C:\tools");
+
+        // Act
+        bool result = FileResolver.TryResolve(_fileSystem, "mytool", _variableProvider, out string? resolvedPath);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(@"C:\tools\mytool.exe", resolvedPath);
+    }
+
+    [Fact]
+    public void TryResolve_CmdInEarlierPathDirectory_WinsOverLaterExe()
+    {
+        // Arrange - matches shell behavior: PATH order first, then extension order
+        _fileSystem.AddFile(@"C:\first\mytool.cmd", new MockFileData("@echo off"));
+        _fileSystem.AddFile(@"C:\second\mytool.exe", new MockFileData("Dummy content"));
+        AddToPath(@"C:\first");
+        AddToPath(@"C:\second");
+
+        // Act
+        bool result = FileResolver.TryResolve(_fileSystem, "mytool", _variableProvider, out string? resolvedPath);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(@"C:\first\mytool.cmd", resolvedPath);
+    }
+
     #endregion
 
     private void AddToPath(string directoryPath, bool createDirectory = true)

@@ -13,7 +13,7 @@ internal static class FileResolver
     /// Attempts to resolve a file path by searching:
     /// 1. As-is (absolute or relative to current directory)
     /// 2. PATH environment variable (for bare filenames only)
-    /// On Windows, .exe extension is added if no extension is provided.
+    /// On Windows, if no extension is provided, .exe and then .cmd are tried in each location.
     /// </summary>
     /// <param name="fileSystem">The file system abstraction.</param>
     /// <param name="path">The file path to resolve.</param>
@@ -30,19 +30,21 @@ internal static class FileResolver
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(environmentVariableProvider);
 
-        // On Windows, add .exe if no extension provided
-        if (OperatingSystem.IsWindows() && !fileSystem.Path.HasExtension(path))
-        {
-            path += ".exe";
-        }
+        // On Windows, try .exe then .cmd if no extension provided (.cmd covers .NET tool shims).
+        ReadOnlySpan<string> candidates = OperatingSystem.IsWindows() && !fileSystem.Path.HasExtension(path)
+            ? [path + ".exe", path + ".cmd"]
+            : [path];
 
         string? pathEnvironment = environmentVariableProvider.GetEnvironmentVariable("PATH");
 
         // Try as-is (absolute or relative to current directory)
-        if (fileSystem.File.Exists(path))
+        foreach (string candidate in candidates)
         {
-            resolvedPath = fileSystem.Path.GetFullPath(path);
-            return true;
+            if (fileSystem.File.Exists(candidate))
+            {
+                resolvedPath = fileSystem.Path.GetFullPath(candidate);
+                return true;
+            }
         }
 
         // Only search PATH for bare filenames (no directory separators)
@@ -55,11 +57,15 @@ internal static class FileResolver
                     continue;
                 }
 
-                string fullPath = fileSystem.Path.Combine(directory, path);
-                if (fileSystem.File.Exists(fullPath))
+                // Like the shell, try every extension in a directory before moving to the next one.
+                foreach (string candidate in candidates)
                 {
-                    resolvedPath = fileSystem.Path.GetFullPath(fullPath);
-                    return true;
+                    string fullPath = fileSystem.Path.Combine(directory, candidate);
+                    if (fileSystem.File.Exists(fullPath))
+                    {
+                        resolvedPath = fileSystem.Path.GetFullPath(fullPath);
+                        return true;
+                    }
                 }
             }
         }

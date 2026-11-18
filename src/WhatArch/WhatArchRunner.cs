@@ -52,6 +52,23 @@ internal static class WhatArchRunner
 
         try
         {
+            if (DotNetToolShimResolver.IsCmdFile(fileSystem, resolvedPath))
+            {
+                string? cmdTargetPath = DotNetToolShimResolver.ParseTargetPath(fileSystem, resolvedPath);
+                if (cmdTargetPath is null)
+                {
+                    return RunResult.ForError($"Error: {resolvedPath} is a batch script, not a binary, and is not a recognized .NET tool shim");
+                }
+
+                if (!fileSystem.File.Exists(cmdTargetPath))
+                {
+                    return RunResult.ForError($"Error: .NET tool shim target not found: {cmdTargetPath}");
+                }
+
+                string cmdTargetArchitecture = PeArchitectureReader.GetArchitecture(fileSystem, cmdTargetPath);
+                return RunResult.ForSuccess($".cmd (shim) -> {cmdTargetArchitecture}");
+            }
+
             string architecture = PeArchitectureReader.GetArchitecture(fileSystem, resolvedPath);
 
             // Check for Scoop shim

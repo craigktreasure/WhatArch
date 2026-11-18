@@ -14,6 +14,7 @@ A [.NET tool](https://docs.microsoft.com/dotnet/core/tools/global-tools) for Win
 - Detects native binary architectures: **x86**, **x64**, **ARM64**, **ARM**
 - Identifies Windows on Arm hybrid binaries: **ARM64EC** and **ARM64X**
 - Identifies .NET assembly configurations: **AnyCPU (.NET)**, **AnyCPU (.NET - 32-bit preferred)**, **x86 (.NET)**, **x64 (.NET)**, **ARM64 (.NET)**
+- Follows [Scoop](https://scoop.sh/) shims and .NET tool `.cmd` shims to report the real application's architecture
 - Simple, script-friendly output
 - No external dependencies - parses PE headers directly
 
@@ -45,7 +46,7 @@ whatarch <path-to-binary>
 Results below are from a Windows on Arm machine.
 
 ```shell
-# Native binaries (by name - searches PATH, adds .exe automatically on Windows)
+# Native binaries (by name - searches PATH, tries .exe then .cmd on Windows)
 whatarch notepad
 > ARM64
 
@@ -69,6 +70,13 @@ whatarch MyApp.dll
 
 whatarch MyApp.x64.dll
 > x64 (.NET)
+
+# Shims: the launcher's architecture, then the real application's
+whatarch myapp   # an ARM64 app installed with Scoop
+> x86 (shim) -> ARM64
+
+whatarch whatarch   # a Native AOT .NET tool
+> .cmd (shim) -> ARM64
 ```
 
 ### Exit Codes
