@@ -236,6 +236,33 @@ This tells you:
 
 If there's no `.shim` file or it can't be parsed, WhatArch reports the architecture normally.
 
+## .NET Tool Shim Support
+
+When a .NET tool ships RID-specific packages (for example, Native AOT builds), the .NET SDK installs a `.cmd` file in the tools directory instead of an `.exe` shim:
+
+```bat
+@echo off
+"%~dp0.store\whatarch\0.3.0\whatarch.win-arm64\0.3.0\tools\any\win-arm64\WhatArch.exe" %*
+```
+
+`%~dp0` expands to the directory containing the `.cmd` file. Framework-dependent tools still get an `.exe` shim and need no special handling.
+
+### WhatArch Solution
+
+When a name has no extension, WhatArch tries `.exe` and then `.cmd` in each location, the same way the shell does. When the resolved file is a `.cmd`, `DotNetToolShimResolver` follows it only if it matches the SDK's exact two-line shape:
+
+1. The file is at most 4 KB.
+2. It contains `@echo off` followed by a single `"%~dp0<relative path>.exe" %*` line. The relative path can't contain `%` (no variable expansion), quotes, colons, wildcards, redirection characters, or control characters.
+3. After normalization, the target path must still be inside the shim's directory, so `..` can't escape it.
+
+The output format shows that a shim was followed:
+
+```
+.cmd (shim) -> ARM64
+```
+
+Any other `.cmd` file is a batch script WhatArch won't interpret, so it reports an error instead of guessing. If the SDK changes the shim format, WhatArch fails visibly until the pattern is updated. The target is only read, never executed. The containment check compares path text only, so a junction or symlink inside the tools directory can still lead elsewhere; creating one there takes the same access as editing the shim itself.
+
 ## References
 
 - [PE Format - Microsoft Docs](https://docs.microsoft.com/en-us/windows/win32/debug/pe-format)
@@ -245,3 +272,4 @@ If there's no `.shim` file or it can't be parsed, WhatArch reports the architect
 - [ECMA-335 (CLI Specification)](https://www.ecma-international.org/publications-and-standards/standards/ecma-335/)
 - [CorFlags.exe Tool](https://docs.microsoft.com/en-us/dotnet/framework/tools/corflags-exe-corflags-conversion-tool)
 - [Scoop Wiki - Shims](https://github.com/ScoopInstaller/Scoop/wiki/Shims)
+- [.NET SDK shim generation (ShellShimRepository.cs)](https://github.com/dotnet/sdk/blob/main/src/Cli/dotnet/ShellShim/ShellShimRepository.cs)

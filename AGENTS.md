@@ -39,7 +39,9 @@ dotnet run --project src\WhatArch -- <path-to-binary>
 
 - **WhatArchRunner** (`src/WhatArch/WhatArchRunner.cs`) - Orchestrates the analysis: resolves file paths, calls `PeArchitectureReader`, handles Scoop shims, and returns structured results.
 
-- **FileResolver** (`src/WhatArch/FileResolver.cs`) - Resolves input paths by checking current directory and searching PATH. Auto-appends `.exe` on Windows for extensionless inputs.
+- **FileResolver** (`src/WhatArch/FileResolver.cs`) - Resolves input paths by checking current directory and searching PATH. On Windows, tries `.exe` then `.cmd` for extensionless inputs.
+
+- **DotNetToolShimResolver** (`src/WhatArch/DotNetToolShimResolver.cs`) - Resolves the `.cmd` shims the .NET SDK writes for RID-specific/Native AOT tools. Accepts only the exact SDK shape (`@echo off` plus `"%~dp0<relative>.exe" %*`) with the target contained in the shim's directory; any other `.cmd` is reported as unrecognized.
 
 - **ScoopShimResolver** (`src/WhatArch/ScoopShimResolver.cs`) - Detects Scoop shims (x86 launcher executables) and resolves to the actual target binary by parsing `.shim` files.
 
