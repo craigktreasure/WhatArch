@@ -151,9 +151,9 @@ jobs:
           # RID-specific packages must be published before the pointer package that references them.
           # https://learn.microsoft.com/dotnet/core/tools/rid-specific-tools#publish-your-tool
           for RID in win-x64 win-arm64 any; do
-            dotnet nuget push "__artifacts/package/release/WhatArch.$RID.$PACKAGE_VERSION.nupkg" --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+            dotnet nuget push "__artifacts/package/release/WhatArch.$RID.$PACKAGE_VERSION.nupkg" --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
           done
-          dotnet nuget push "__artifacts/package/release/WhatArch.$PACKAGE_VERSION.nupkg" --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+          dotnet nuget push "__artifacts/package/release/WhatArch.$PACKAGE_VERSION.nupkg" --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
           echo "✅ Successfully released $PACKAGE_VERSION to NuGet.org"
 
       - name: Create release summary
