@@ -13,24 +13,34 @@ internal static class WhatArchRunner
     /// Result of running the WhatArch analysis.
     /// </summary>
     /// <param name="ExitCode">The exit code (0 for success, 1 for error).</param>
-    /// <param name="Output">The output message (architecture or null on error).</param>
+    /// <param name="Architecture">The architecture of the binary, or of a shim's target (null on error).</param>
+    /// <param name="ShimLabel">The shim's own label, such as "x86" or ".cmd" (null when not a shim).</param>
     /// <param name="Error">The error message (null on success).</param>
     [ExcludeFromCodeCoverage(Justification = "Code coverage improperly calculated for records constructors and parameters.")]
-    internal record RunResult(int ExitCode, string? Output, string? Error)
+    internal record RunResult(int ExitCode, string? Architecture, string? ShimLabel, string? Error)
     {
         /// <summary>
         /// Creates a successful run result.
         /// </summary>
-        /// <param name="output">The output message.</param>
+        /// <param name="architecture">The architecture of the binary, or of a shim's target.</param>
+        /// <param name="shimLabel">The shim's own label, or null when not a shim.</param>
         /// <returns>A <see cref="RunResult"/> representing success.</returns>
-        public static RunResult ForSuccess(string output) => new(0, output, null);
+        public static RunResult ForSuccess(string architecture, string? shimLabel = null) => new(0, architecture, shimLabel, null);
 
         /// <summary>
         /// Creates an error run result.
         /// </summary>
         /// <param name="error">The error message.</param>
         /// <returns>A <see cref="RunResult"/> representing an error.</returns>
-        public static RunResult ForError(string error) => new(1, null, error);
+        public static RunResult ForError(string error) => new(1, null, null, error);
+
+        /// <summary>
+        /// Formats the result for display.
+        /// </summary>
+        /// <param name="shortOutput">When true, a shim reports only its target's architecture.</param>
+        /// <returns>The text to print, or null on error.</returns>
+        public string? FormatOutput(bool shortOutput)
+            => ShimLabel is null || shortOutput ? Architecture : $"{ShimLabel} (shim) -> {Architecture}";
     }
 
     /// <summary>
@@ -39,7 +49,7 @@ internal static class WhatArchRunner
     /// <param name="fileSystem">The file system abstraction.</param>
     /// <param name="path">The path to the binary file.</param>
     /// <param name="environmentVariableProvider">The environment variable provider.</param>
-    /// <returns>A result containing the exit code, output, and any error message.</returns>
+    /// <returns>A result containing the exit code, architecture, shim details, and any error message.</returns>
     public static RunResult Run(IFileSystem fileSystem, string path, IEnvironmentVariableProvider environmentVariableProvider)
     {
         if (!FileResolver.TryResolve(fileSystem, path, environmentVariableProvider, out string? resolvedPath))
@@ -66,7 +76,7 @@ internal static class WhatArchRunner
                 }
 
                 string cmdTargetArchitecture = PeArchitectureReader.GetArchitecture(fileSystem, cmdTargetPath);
-                return RunResult.ForSuccess($".cmd (shim) -> {cmdTargetArchitecture}");
+                return RunResult.ForSuccess(cmdTargetArchitecture, shimLabel: ".cmd");
             }
 
             string architecture = PeArchitectureReader.GetArchitecture(fileSystem, resolvedPath);
@@ -77,7 +87,7 @@ internal static class WhatArchRunner
             if (shimResult.FollowShimToTarget)
             {
                 string shimTargetArchitecture = PeArchitectureReader.GetArchitecture(fileSystem, shimResult.TargetPath);
-                return RunResult.ForSuccess($"{architecture} (shim) -> {shimTargetArchitecture}");
+                return RunResult.ForSuccess(shimTargetArchitecture, shimLabel: architecture);
             }
 
             return RunResult.ForSuccess(architecture);

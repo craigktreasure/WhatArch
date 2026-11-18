@@ -38,8 +38,12 @@ dotnet tool update --global WhatArch
 ## Usage
 
 ```shell
-whatarch <path-to-binary>
+whatarch [--short] <path-to-binary>
 ```
+
+| Option          | Description                                      |
+|-----------------|--------------------------------------------------|
+| `-s`, `--short` | For shims, print only the target's architecture |
 
 ### Examples
 
@@ -77,6 +81,10 @@ whatarch myapp   # an ARM64 app installed with Scoop
 
 whatarch whatarch   # a Native AOT .NET tool
 > .cmd (shim) -> ARM64
+
+# --short (-s): print only the real application's architecture
+whatarch --short myapp
+> ARM64
 ```
 
 ### Exit Codes

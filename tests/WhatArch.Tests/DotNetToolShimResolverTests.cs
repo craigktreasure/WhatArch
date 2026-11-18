@@ -144,7 +144,18 @@ public class DotNetToolShimResolverTests
         var result = WhatArchRunner.Run(_fileSystem, "mytool", _variableProvider);
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal(".cmd (shim) -> ARM64", result.Output);
+        Assert.Equal(".cmd (shim) -> ARM64", result.FormatOutput(shortOutput: false));
+    }
+
+    [Fact]
+    public void Run_SdkShimWithShortOutput_ReturnsTargetArchitectureOnly()
+    {
+        AddShimAndTarget(SdkShim);
+
+        var result = WhatArchRunner.Run(_fileSystem, ShimPath, _variableProvider);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("ARM64", result.FormatOutput(shortOutput: true));
     }
 
     [Fact]
@@ -156,7 +167,7 @@ public class DotNetToolShimResolverTests
         var result = WhatArchRunner.Run(_fileSystem, "mytool", _variableProvider);
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal(".cmd (shim) -> ARM64", result.Output);
+        Assert.Equal(".cmd (shim) -> ARM64", result.FormatOutput(shortOutput: false));
     }
 
     [Fact]

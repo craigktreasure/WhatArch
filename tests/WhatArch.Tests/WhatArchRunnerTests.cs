@@ -32,8 +32,9 @@ public class WhatArchRunnerTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal(expectedArch, result.Output);
+        Assert.Equal(expectedArch, result.FormatOutput(shortOutput: false));
         Assert.Null(result.Error);
+        Assert.Equal(expectedArch, result.FormatOutput(shortOutput: true));
     }
 
     [Theory]
@@ -50,7 +51,7 @@ public class WhatArchRunnerTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal(expectedArch, result.Output);
+        Assert.Equal(expectedArch, result.FormatOutput(shortOutput: false));
         Assert.Null(result.Error);
     }
 
@@ -69,8 +70,8 @@ public class WhatArchRunnerTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.NotNull(result.Output);
-        Assert.Contains(result.Output, ValidNativeArchitectures);
+        Assert.NotNull(result.FormatOutput(shortOutput: false));
+        Assert.Contains(result.FormatOutput(shortOutput: false), ValidNativeArchitectures);
         Assert.Null(result.Error);
     }
 
@@ -85,8 +86,8 @@ public class WhatArchRunnerTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.NotNull(result.Output);
-        Assert.Contains(result.Output, ValidNativeArchitectures);
+        Assert.NotNull(result.FormatOutput(shortOutput: false));
+        Assert.Contains(result.FormatOutput(shortOutput: false), ValidNativeArchitectures);
         Assert.Null(result.Error);
     }
 
@@ -102,8 +103,8 @@ public class WhatArchRunnerTests
         // Assert - May fail if dotnet isn't in PATH, which is acceptable
         if (result.ExitCode == 0)
         {
-            Assert.NotNull(result.Output);
-            Assert.Contains(result.Output, ValidNativeArchitectures);
+            Assert.NotNull(result.FormatOutput(shortOutput: false));
+            Assert.Contains(result.FormatOutput(shortOutput: false), ValidNativeArchitectures);
             Assert.Null(result.Error);
         }
     }
@@ -123,7 +124,8 @@ public class WhatArchRunnerTests
 
         // Assert
         Assert.Equal(1, result.ExitCode);
-        Assert.Null(result.Output);
+        Assert.Null(result.FormatOutput(shortOutput: false));
+        Assert.Null(result.FormatOutput(shortOutput: true));
         Assert.NotNull(result.Error);
         Assert.Contains("File not found", result.Error, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("searched current directory and PATH", result.Error, StringComparison.OrdinalIgnoreCase);
@@ -140,7 +142,7 @@ public class WhatArchRunnerTests
 
         // Assert
         Assert.Equal(1, result.ExitCode);
-        Assert.Null(result.Output);
+        Assert.Null(result.FormatOutput(shortOutput: false));
         Assert.NotNull(result.Error);
         Assert.Contains("File not found", result.Error, StringComparison.OrdinalIgnoreCase);
         // Should NOT mention "searched current directory and PATH" for absolute paths
@@ -158,7 +160,7 @@ public class WhatArchRunnerTests
 
         // Assert
         Assert.Equal(1, result.ExitCode);
-        Assert.Null(result.Output);
+        Assert.Null(result.FormatOutput(shortOutput: false));
         Assert.NotNull(result.Error);
         Assert.Contains("Error:", result.Error, StringComparison.OrdinalIgnoreCase);
     }
@@ -178,7 +180,7 @@ public class WhatArchRunnerTests
 
         // Assert
         Assert.Equal(1, result.ExitCode);
-        Assert.Null(result.Output);
+        Assert.Null(result.FormatOutput(shortOutput: false));
         Assert.NotNull(result.Error);
         // Should NOT mention "searched current directory and PATH" for paths with directory separators
         Assert.DoesNotContain("searched current directory and PATH", result.Error, StringComparison.OrdinalIgnoreCase);
