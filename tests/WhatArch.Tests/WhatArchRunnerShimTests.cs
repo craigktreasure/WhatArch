@@ -24,7 +24,27 @@ public class WhatArchRunnerShimTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("x86 (shim) -> ARM64", result.Output);
+        Assert.Equal("x86 (shim) -> ARM64", result.FormatOutput(shortOutput: false));
+        Assert.Null(result.Error);
+    }
+
+    [Fact]
+    public void Run_ShimWithShortOutput_ReturnsTargetArchitectureOnly()
+    {
+        // Arrange
+        byte[] shimPeData = TestPeBuilder.CreateMinimalPe(TestPeBuilder.IMAGE_FILE_MACHINE_I386);
+        byte[] targetPeData = TestPeBuilder.CreateMinimalPe(TestPeBuilder.IMAGE_FILE_MACHINE_ARM64, isPe32Plus: true);
+
+        _fileSystem.AddFile(@"C:\scoop\shims\app.exe", new MockFileData(shimPeData));
+        _fileSystem.AddFile(@"C:\scoop\shims\app.shim", new MockFileData("path = C:\\scoop\\apps\\app\\current\\app.exe"));
+        _fileSystem.AddFile(@"C:\scoop\apps\app\current\app.exe", new MockFileData(targetPeData));
+
+        // Act
+        var result = WhatArchRunner.Run(_fileSystem, @"C:\scoop\shims\app.exe", _variableProvider);
+
+        // Assert
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("ARM64", result.FormatOutput(shortOutput: true));
         Assert.Null(result.Error);
     }
 
@@ -44,7 +64,7 @@ public class WhatArchRunnerShimTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("x86 (shim) -> x64", result.Output);
+        Assert.Equal("x86 (shim) -> x64", result.FormatOutput(shortOutput: false));
         Assert.Null(result.Error);
     }
 
@@ -67,7 +87,7 @@ public class WhatArchRunnerShimTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("x86 (shim) -> AnyCPU (.NET)", result.Output);
+        Assert.Equal("x86 (shim) -> AnyCPU (.NET)", result.FormatOutput(shortOutput: false));
         Assert.Null(result.Error);
     }
 
@@ -86,7 +106,8 @@ public class WhatArchRunnerShimTests
 
         // Assert - Should fall back to just showing shim architecture
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("x86", result.Output);
+        Assert.Equal("x86", result.FormatOutput(shortOutput: false));
+        Assert.Equal("x86", result.FormatOutput(shortOutput: true));
         Assert.Null(result.Error);
     }
 
@@ -104,7 +125,7 @@ public class WhatArchRunnerShimTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("ARM64", result.Output);
+        Assert.Equal("ARM64", result.FormatOutput(shortOutput: false));
         Assert.Null(result.Error);
     }
 
@@ -126,7 +147,7 @@ public class WhatArchRunnerShimTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("x86 (shim) -> ARM64", result.Output);
+        Assert.Equal("x86 (shim) -> ARM64", result.FormatOutput(shortOutput: false));
         Assert.Null(result.Error);
     }
 
@@ -144,7 +165,7 @@ public class WhatArchRunnerShimTests
 
         // Assert - Should fall back to just showing shim architecture
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("x86", result.Output);
+        Assert.Equal("x86", result.FormatOutput(shortOutput: false));
         Assert.Null(result.Error);
     }
 
@@ -162,7 +183,7 @@ public class WhatArchRunnerShimTests
 
         // Assert - Should fall back to just showing shim architecture
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("x86", result.Output);
+        Assert.Equal("x86", result.FormatOutput(shortOutput: false));
         Assert.Null(result.Error);
     }
 }

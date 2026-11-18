@@ -236,6 +236,8 @@ This tells you:
 
 If there's no `.shim` file or it can't be parsed, WhatArch reports the architecture normally.
 
+With `--short`, WhatArch prints only the target's architecture (`ARM64`).
+
 ## .NET Tool Shim Support
 
 When a .NET tool ships RID-specific packages (for example, Native AOT builds), the .NET SDK installs a `.cmd` file in the tools directory instead of an `.exe` shim:
@@ -260,6 +262,8 @@ The output format shows that a shim was followed:
 ```
 .cmd (shim) -> ARM64
 ```
+
+With `--short`, WhatArch prints only the target's architecture (`ARM64`).
 
 Any other `.cmd` file is a batch script WhatArch won't interpret, so it reports an error instead of guessing. If the SDK changes the shim format, WhatArch fails visibly until the pattern is updated. The target is only read, never executed. The containment check compares path text only, so a junction or symlink inside the tools directory can still lead elsewhere; creating one there takes the same access as editing the shim itself.
 
