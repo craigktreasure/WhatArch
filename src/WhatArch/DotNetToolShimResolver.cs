@@ -40,28 +40,19 @@ internal static partial class DotNetToolShimResolver
     /// The full path to the target executable, or null if the file is not a recognized shim.
     /// The target is not checked for existence, so callers can report a broken shim distinctly.
     /// </returns>
+    /// <exception cref="IOException">The .cmd file could not be read.</exception>
     public static string? ParseTargetPath(IFileSystem fileSystem, string cmdPath)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentNullException.ThrowIfNull(cmdPath);
 
-        string content;
-        try
-        {
-            if (fileSystem.FileInfo.New(cmdPath).Length > MaxShimLength)
-            {
-                return null;
-            }
-
-            content = fileSystem.File.ReadAllText(cmdPath);
-        }
-#pragma warning disable CA1031 // Do not catch general exception types
-        catch
-#pragma warning restore CA1031 // Do not catch general exception types
+        // Read errors propagate so the caller reports the real cause, not "unrecognized shim".
+        if (fileSystem.FileInfo.New(cmdPath).Length > MaxShimLength)
         {
             return null;
         }
 
+        string content = fileSystem.File.ReadAllText(cmdPath);
         string[] lines = content.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         if (lines.Length != 2 || !string.Equals(lines[0], "@echo off", StringComparison.OrdinalIgnoreCase))
         {
